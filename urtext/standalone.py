@@ -1,30 +1,15 @@
-import editor
-import re
-import os
-import time
+from .project import UrtextProject
 import sys
-import dialogs
-import datetime
-import dropbox
-import contextlib
-parent_dir = os.path.dirname(__file__)
-sys.path.append(parent_dir)
 
-from urtext.project import UrtextProject
-from urtext.node import UrtextNode
-
-from watchdog.events import FileSystemEventHandler
-import watchdog
-from watchdog.observers import Observer
-
-command = sys.argv[1]
+project_path = sys.argv[1]
 node_id_regex = r'\b[0-9,a-z]{3}\b'
+command = ''
 
 class UrtextWatcher(FileSystemEventHandler):
 
     def __init__(self):
        super().__init__()
-       self.project =  _UrtextProject = UrtextProject(urtext_project_path)
+       self.project =  _UrtextProject = UrtextProject(project_path)
 
     def on_created(self, event):
         if event.is_directory:
