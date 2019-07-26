@@ -1,4 +1,4 @@
-from .project import UrtextProject
+from urtext.project import UrtextProject
 import sys
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
