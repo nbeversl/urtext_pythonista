@@ -1,15 +1,22 @@
 from .project import UrtextProject
 import sys
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+import watchdog
+import time
+import os
+import socket
 
-project_path = sys.argv[1]
+urtext_project_path = sys.argv[1]
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 command = ''
+print(urtext_project_path)
 
 class UrtextWatcher(FileSystemEventHandler):
 
     def __init__(self):
        super().__init__()
-       self.project =  _UrtextProject = UrtextProject(project_path)
+       self.project =  _UrtextProject = UrtextProject(urtext_project_path)
 
     def on_created(self, event):
         if event.is_directory:
@@ -36,7 +43,7 @@ class UrtextWatcher(FileSystemEventHandler):
           ]
         if filename in do_not_update or '.git' in filename:
           return
-
+        print('MODIFIED')
         self.project.log.info('MODIFIED ' + filename +' - Updating the project object')
         self.project.parse_file(filename)
         self.project.update()
@@ -81,6 +88,29 @@ def open_node(node_id):
 	editor.open_file(os.path.join(urtext_project_path,filename))
 	time.sleep(1)
 	editor.set_selection(position, position+20)
+
+watch()
+
+HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
+PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen()
+    
+    conn, addr = s.accept()
+    
+    with conn:
+        print('Connected by', addr)
+        while True:
+            data = conn.recv(1024)
+            if data:
+              if not data:
+                break
+            conn.sendall(data)
+
+
+
 
 if 'event_handler' not in vars() or event_handler == None:
     watch()
