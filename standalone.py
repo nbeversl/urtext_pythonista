@@ -108,16 +108,15 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         while True:
             data = conn.recv(1024)
             if data:
-               f = data.decode('utf-8')
-               thing = f.split('\r\n\r\n')[1]
-               api = json.loads(thing)
-               if api['command'] == 'next_node':
-                  next_node = event_handler.project.next_index()
-                  response = '''HTTP/1.0 200 OK
+               request = data.decode('utf-8').split('\n')[0]
+               command = request.replace('GET /?','').split('HTTP')[0].strip().split('=')
+               print (command)
+               next_node = event_handler.project.next_index()
+               response = '''HTTP/1.0 200 OK
                               Content-Type: text/plain \r\n\r\n'''
-                  response += next_node
-                  conn.send(response.encode('utf-8'))
-                  conn.close()
+               response += next_node
+               conn.send(response.encode('utf-8'))
+               conn.close()
 
 
 
