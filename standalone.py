@@ -6,11 +6,11 @@ import watchdog
 import time
 import os
 import socket
-
+import json
 urtext_project_path = sys.argv[1]
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 command = ''
-print(urtext_project_path)
+
 
 class UrtextWatcher(FileSystemEventHandler):
 
@@ -90,14 +90,17 @@ def open_node(node_id):
 	editor.set_selection(position, position+20)
 
 watch()
+print('Watching '+urtext_project_path+' . . .')
 
 HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
 PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((HOST, PORT))
     s.listen()
-    
+    # https://stackoverflow.com/questions/10114224/how-to-properly-send-http-response-with-python-using-socket-library-only
+
     conn, addr = s.accept()
     
     with conn:
@@ -105,9 +108,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         while True:
             data = conn.recv(1024)
             if data:
-              if not data:
-                break
-            conn.sendall(data)
+               f = data.decode('utf-8')
+               thing = f.split('\r\n\r\n')[1]
+               api = json.loads(thing)
+               if api['command'] == 'next_node':
+                  next_node = event_handler.project.next_index()
+                  response = '''HTTP/1.0 200 OK
+                              Content-Type: text/plain \r\n\r\n'''
+                  response += next_node
+                  conn.send(response.encode('utf-8'))
+                  conn.close()
+
 
 
 
