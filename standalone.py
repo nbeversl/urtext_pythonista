@@ -7,67 +7,15 @@ import time
 import os
 import socket
 import json
-urtext_project_path = sys.argv[1]
+import datetime
+urtext_project_path = '/private/var/mobile/Library/Mobile Documents/iCloud~com~omz-software~Pythonista3/Documents/archive'
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 command = ''
+import ui
 
+_UrtextProject = UrtextProject(urtext_project_path)
 
-class UrtextWatcher(FileSystemEventHandler):
-
-    def __init__(self):
-       super().__init__()
-       self.project =  _UrtextProject = UrtextProject(urtext_project_path)
-
-    def on_created(self, event):
-        if event.is_directory:
-          return None
-
-        filename = os.path.basename(event.src_path)
-        if self.project.parse_file(filename) == None:
-          self.project.log.info(filename + ' not added.')
-          return
-        self.project.log.info(filename + ' modified. Updating the project object')
-        #self.project.update()
-
-    def on_modified(self, event):
-        if event.is_directory:
-          return None
-        filename = os.path.basename(event.src_path)
-        if self.filter(filename) == None:
-          return        
-        do_not_update = [
-           self.project.nodes['zzz'].filename,
-           self.project.nodes['zzy'].filename,
-           self.project.settings['logfile'],
-           '00000.txt'
-          ]
-        if filename in do_not_update or '.git' in filename:
-          return
-        print('MODIFIED')
-        self.project.log.info('MODIFIED ' + filename +' - Updating the project object')
-        self.project.parse_file(filename)
-        self.project.update()
-
-    def on_deleted(self, event):
-      filename = os.path.basename(event.src_path)
-      self.project.log.info(filename + ' DELETED')
-      if filename in self.project.files:
-          self.project.remove_file(filename)
-
-    def on_moved(self, event):
-        if self.filter(event.src_path) == None:
-          return
-        old_filename = os.path.basename(event.src_path)
-        new_filename = os.path.basename(event.dest_path)
-        if old_filename in self.project.files:
-            self.project.log.info('RENAMED'+ old_filename +' to ' + new_filename)
-            self.project.handle_renamed(old_filename, new_filename)
-    
-    def filter(self, filename):
-      for fragment in ['urtext_log', '.git','.icloud']:
-        if fragment in filename:
-          return None
-      return filename
+current_open_file = ''
 
 def save_and_compile():
     current_file = editor.get_path()
@@ -75,24 +23,8 @@ def save_and_compile():
     event_handler.project.parse_file(current_file) # parse and update explicitly
     event_handler.project.update()
 
-def watch():
-    global event_handler
-    event_handler = UrtextWatcher()
-    observer = Observer()
-    observer.schedule(event_handler, path=urtext_project_path, recursive=False)
-    observer.start()
 
-def open_node(node_id):
-	filename = event_handler.project.get_file_name(node_id)
-	position = event_handler.project.nodes[node_id].position
-	editor.open_file(os.path.join(urtext_project_path,filename))
-	time.sleep(1)
-	editor.set_selection(position, position+20)
-
-watch()
-print('Watching '+urtext_project_path+' . . .')
-
-HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
+'''HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
 PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -100,36 +32,66 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
     s.listen()
     # https://stackoverflow.com/questions/10114224/how-to-properly-send-http-response-with-python-using-socket-library-only
-
     conn, addr = s.accept()
     
     with conn:
         print('Connected by', addr)
         while True:
             data = conn.recv(1024)
-            if data:
-               request = data.decode('utf-8').split('\n')[0]
-               command = request.replace('GET /?','').split('HTTP')[0].strip().split('=')
-               print (command)
-               next_node = event_handler.project.next_index()
-               response = '''HTTP/1.0 200 OK
-                              Content-Type: text/plain \r\n\r\n'''
-               response += next_node
-               conn.send(response.encode('utf-8'))
-               conn.close()
+            request = data.decode('utf-8').split('\n')[0]
+            print(request)
+            command = request.replace('GET /?','').split('HTTP')[0].strip().split('=')
+            print (command)
+            response = 'HTTP/1.0 200 OK
+                              Content-Type: text/plain \r\n\r\n
+           
+            if command[1] == "next_node":
+              r = event_handler.project.next_index()
+                   
+            if command[1] == "home":
+              node_id = event_handler.project.settings['home']
+              r = event_handler.project.nodes[node_id].filename
+            if command[0] == "link":
+               r =''
+               if command[1] in event_handler.project.nodes:
+                r = event_handler.project.nodes[command[1]].filename
+               else:
+                print('not not here')
+                   
+            if command[1] == 'timestamp':
+                  now = datetime.datetime.now()
+                  r = event_handler.project.timestamp(now)
+                  
+            if command[1] == 'node_list':
+                  r= event_handler.project.nodes['zzz'].filename
+               
+            response += r
+            conn.send(response.encode('utf-8'))
+            conn.close()'''
 
+def save():
+	global _UrtextProject
+	contents = s.text    
+	if current_open_file:
+		with open(os.path.join(_UrtextProject.path, current_open_file),'w', encoding='utf-8') as d:
+			d.write(contents)
+			d.close()
+		_UrtextProject.update() 
+	
+def open_file(filename):
+	global current_open_file	
+	if current_open_file:
+		save()
+	file = os.path.join(_UrtextProject.path, filename)
+	with open(file,'r', encoding='utf-8') as d:
+		contents=d.read() 
+		d.close()
+	s.text=contents
+	current_open_file = file
 
-
-
-
-if 'event_handler' not in vars() or event_handler == None:
-    watch()
-  
-if command == 'timestamp':
+def timestamp():
     now = datetime.datetime.now()
-    datestamp = event_handler.project.timestamp(now)
-    position = editor.get_selection()
-    editor.replace_text(position[0],position[0], datestamp)
+    datestamp = _UrtextProject.timestamp(now)
 
 if command == 'tag': ##?
     tag = sys.argv[1]
@@ -137,37 +99,71 @@ if command == 'tag': ##?
     location = editor.get_selection() 
     editor.replace_text(location[0], location[1], contents)    
 
-if command == 'open_link':
-    save_and_compile()
-    text = editor.get_text()
-    line = editor.get_line_selection()
-    selected_text = text[line[0]:line[1]]
-    link = event_handler.project.get_link(selected_text)
-    
+def open_link(sender):
+  
+    position = s.selected_range[0]
+    line = s.text[position:position+20]
+    link = _UrtextProject.get_link(line)
+    print('printing linke')
+    print(link)
     if link != None:
-        del event_handler.project.navigation[event_handler.project.nav_index+1:]
-        event_handler.project.navigation.append(link[1])
+        del _UrtextProject.navigation[_UrtextProject.nav_index+1:]
+        _UrtextProject.navigation.append(link[1])
       
         # increment the index to match
-        event_handler.project.nav_index += 1
+        _UrtextProject.nav_index += 1
 
         if link[0] == 'NODE':
-            open_node(link[1])
+            print('opening '+link[1])
+            open_node(link[1])            
+
         # HTTP links not yet handled in Pythonista
 
+w,h=ui.get_screen_size()         
+v=ui.View()
+b=ui.View()
+new=ui.Button(title='+', frame=(120,0,160,50))
+s=ui.TextView()
+open_link_button=ui.Button(title=">>",frame=(0,0,40,50))
+home_button=ui.Button(title='HHH',frame=(60,0,80,50))
 
-if command == "new_node":        
-    filename = event_handler.project.new_file_node(datetime.datetime.now())   
-    time.sleep(.5)
-    editor.open_file(os.path.join(urtext_project_path, filename))
-    time.sleep(.5)
-    editor.set_selection(0)
+b.add_subview(open_link_button)
+b.add_subview(home_button)
 
+def open_home(sender):
+	home_id = _UrtextProject.settings['home']
+	open_node(home_id)
+
+def open_node(node_id):
+	filename=_UrtextProject.nodes[node_id].filename
+	open_file(filename)
+	position = _UrtextProject.nodes[node_id].ranges[0][0]
+	s.selected_range = (position, position)
+
+home_button.action=open_home
+open_link_button.action = open_link
+s.keyboard_type=ui.KEYBOARD_URL
+v.add_subview(b)
+v.add_subview(s)
+b.frame=(0,20,w,80)
+s.frame=(0,50,w,h-200)
+b.add_subview(new)
+open_home(None)
+v.present(hide_title_bar=True)
+
+
+
+def new_node(sender):        
+    filename =  _UrtextProject.new_file_node(datetime.datetime.now())
+    time.sleep(0.5)
+    open_file(filename)
+    
+new.action =new_node
 if command == "home":      
     save_and_compile()
     time.sleep(.75)
-    node_id = event_handler.project.settings['home']
-    filename = event_handler.project.nodes[node_id].filename
+    node_id = _UrtextProject.settings['home']
+    filename = _UrtextProject.nodes[node_id].filename
     editor.open_file(os.path.join(urtext_project_path, filename))
 
 if command == "tag_from_other":
