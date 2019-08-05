@@ -73,7 +73,8 @@ class UrtextNode:
   def strip_metadata(self, contents=''):
     if contents == '':
       contents = self.contents()
-    stripped_contents = re.sub(r'(\/--(?:(?!\/--).)*?--\/)', '', contents, flags=re.DOTALL)
+    t = re.compile(r'(\/--(?:(?!\/--).)*?--\/)', re.DOTALL)
+    stripped_contents = re.sub(t, '', contents)
     return stripped_contents
   def strip_inline_nodes(self, contents=''):
     if contents == '':
@@ -97,7 +98,7 @@ class UrtextNode:
 
   def content_only(self):
 
-    contents = self.strip_metadata(contents=self.contents())
+    contents = self.strip_metadata()
     contents = self.strip_dynamic_definitions(contents=contents)
     return contents
     
