@@ -14,68 +14,15 @@ command = ''
 import ui
 
 _UrtextProject = UrtextProject(urtext_project_path)
-
 current_open_file = ''
 
-def save_and_compile():
-    current_file = editor.get_path()
-    editor.open_file(current_file) # this triggers a save of the current file
-    event_handler.project.parse_file(current_file) # parse and update explicitly
-    event_handler.project.update()
-
-
-'''HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
-PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
-
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((HOST, PORT))
-    s.listen()
-    # https://stackoverflow.com/questions/10114224/how-to-properly-send-http-response-with-python-using-socket-library-only
-    conn, addr = s.accept()
-    
-    with conn:
-        print('Connected by', addr)
-        while True:
-            data = conn.recv(1024)
-            request = data.decode('utf-8').split('\n')[0]
-            print(request)
-            command = request.replace('GET /?','').split('HTTP')[0].strip().split('=')
-            print (command)
-            response = 'HTTP/1.0 200 OK
-                              Content-Type: text/plain \r\n\r\n
-           
-            if command[1] == "next_node":
-              r = event_handler.project.next_index()
-                   
-            if command[1] == "home":
-              node_id = event_handler.project.settings['home']
-              r = event_handler.project.nodes[node_id].filename
-            if command[0] == "link":
-               r =''
-               if command[1] in event_handler.project.nodes:
-                r = event_handler.project.nodes[command[1]].filename
-               else:
-                print('not not here')
-                   
-            if command[1] == 'timestamp':
-                  now = datetime.datetime.now()
-                  r = event_handler.project.timestamp(now)
-                  
-            if command[1] == 'node_list':
-                  r= event_handler.project.nodes['zzz'].filename
-               
-            response += r
-            conn.send(response.encode('utf-8'))
-            conn.close()'''
-
 def save():
-	global _UrtextProject
-	contents = s.text    
+	contents = text_view.text 
 	if current_open_file:
 		with open(os.path.join(_UrtextProject.path, current_open_file),'w', encoding='utf-8') as d:
 			d.write(contents)
 			d.close()
+		_UrtextProject.parse_file(current_open_file)
 		_UrtextProject.update() 
 	
 def open_file(filename):
@@ -86,7 +33,7 @@ def open_file(filename):
 	with open(file,'r', encoding='utf-8') as d:
 		contents=d.read() 
 		d.close()
-	s.text=contents
+	text_view.text=contents
 	current_open_file = file
 
 def timestamp():
@@ -101,11 +48,9 @@ if command == 'tag': ##?
 
 def open_link(sender):
   
-    position = s.selected_range[0]
-    line = s.text[position:position+20]
+    position = text_view.selected_range[0]
+    line = text_view.text[position:position+20]
     link = _UrtextProject.get_link(line)
-    print('printing linke')
-    print(link)
     if link != None:
         del _UrtextProject.navigation[_UrtextProject.nav_index+1:]
         _UrtextProject.navigation.append(link[1])
@@ -119,16 +64,7 @@ def open_link(sender):
 
         # HTTP links not yet handled in Pythonista
 
-w,h=ui.get_screen_size()         
-v=ui.View()
-b=ui.View()
-new=ui.Button(title='+', frame=(120,0,160,50))
-s=ui.TextView()
-open_link_button=ui.Button(title=">>",frame=(0,0,40,50))
-home_button=ui.Button(title='HHH',frame=(60,0,80,50))
 
-b.add_subview(open_link_button)
-b.add_subview(home_button)
 
 def open_home(sender):
 	home_id = _UrtextProject.settings['home']
@@ -137,28 +73,20 @@ def open_home(sender):
 def open_node(node_id):
 	filename=_UrtextProject.nodes[node_id].filename
 	open_file(filename)
+	time.sleep(0.5)
 	position = _UrtextProject.nodes[node_id].ranges[0][0]
-	s.selected_range = (position, position)
-
-home_button.action=open_home
-open_link_button.action = open_link
-s.keyboard_type=ui.KEYBOARD_URL
-v.add_subview(b)
-v.add_subview(s)
-b.frame=(0,20,w,80)
-s.frame=(0,50,w,h-200)
-b.add_subview(new)
-open_home(None)
-v.present(hide_title_bar=True)
-
+	text_view.selected_range = (position, position+1)
+	del _UrtextProject.navigation[_UrtextProject.nav_index+1:]
+	_UrtextProject.navigation.append(node_id)
+	_UrtextProject.nav_index += 1
 
 
 def new_node(sender):        
     filename =  _UrtextProject.new_file_node(datetime.datetime.now())
-    time.sleep(0.5)
     open_file(filename)
-    
-new.action =new_node
+    text_view.selected_range = (0,0)
+
+
 if command == "home":      
     save_and_compile()
     time.sleep(.75)
@@ -183,69 +111,121 @@ if command == "search":
     results = event_handler.project.search(string)
     editor.make_new_file('search_results', results)
 
-if command == "node_list":
-    save_and_compile()
-    filename = event_handler.project.nodes['zzz'].filename
-    editor.open_file(filename)
+def node_list(sender):
+	 open_node('zzz')
 
-if command == "metadata_list":
-    save_and_compile()
-    filename = event_handler.project.nodes['zzy'].filename
-    editor.open_file(filename)
+def metadata_list(sender):
+    open_node('zzy')
 
-
-if command == "back":
+def nav_back(sender):
 
     # return if there are no saved locations
-    if len( event_handler.project.navigation) == 0:
+    if len(_UrtextProject.navigation) == 0:
       print('There is no nav history')
       
     # return if the index is already at the beginning
-    elif event_handler.project.nav_index == 0:
+    elif _UrtextProject.nav_index == 0:
       print('index is already at the beginning.')
 
     else:
       # otherwise, move backwards one
-      event_handler.project.nav_index -= 1
+      _UrtextProject.nav_index -= 1
 
       # and open this node
-      last_node = event_handler.project.navigation[event_handler.project.nav_index]          
-      position = event_handler.project.nodes[last_node].ranges[0][0]
+      last_node = _UrtextProject.navigation[_UrtextProject.nav_index]          
+      position = _UrtextProject.nodes[last_node].ranges[0][0]
 
       open_node(last_node)
 
-if command == "forward":
+def nav_forward(sender):
 
     # return if there are no saved locations
-    if len( event_handler.project.navigation) == 0:
+    if len( _UrtextProject.navigation) == 0:
       print('There is no more nav history')
 
     # return if the index is already at the end
-    elif event_handler.project.nav_index == len(event_handler.project.navigation) - 1:
+    elif _UrtextProject.nav_index == len(_UrtextProject.navigation) - 1:
       print('index is already at the end.')
 
     else:
       # otherwise move it forward by one
-      event_handler.project.nav_index += 1
+      _UrtextProject.nav_index += 1
 
       # and open this node
-      last_node = event_handler.project.navigation[event_handler.project.nav_index]          
-      position = event_handler.project.nodes[last_node].ranges[0][0]
+      last_node = _UrtextProject.navigation[_UrtextProject.nav_index]          
+      position = _UrtextProject.nodes[last_node].ranges[0][0]
       open_node(last_node)
 
-if command == "last":
+def delete_node(sender):
+	os.remove(os.path.join(_UrtextProject.path, current_open_file))
+	_UrtextProject.remove_file(current_open_file)
+	_UrtextProject.update()
+	text_view.text=''
 
-    # return only if there are no saved locations
-    if len( event_handler.project.navigation) == 0: 
-      print('There is no more nav history')
-      
-    else:
+button_height = 60
+button_width = 25
 
-      # and open this node
-      last_node = event_handler.project.navigation[event_handler.project.nav_index]          
-      position = event_handler.project.nodes[last_node].ranges[0][0]
-      open_node(last_node)
+w,h = ui.get_screen_size()         
 
+main_view = ui.View()
+
+
+button_view = ui.View()
+button_view.font='<system>'
+button_view.frame=(0, 20, w, button_height)
+
+text_view=ui.TextView()
+text_view.frame=(0,button_height,w,h-200)
+
+main_view.add_subview(button_view)
+main_view.add_subview(text_view)
+
+forward_button = ui.Button(title=">")
+forward_button.action=nav_forward
+
+back_button = ui.Button(title='<')
+back_button.action=nav_back
+
+home_button=ui.Button(title='H')
+home_button.action=open_home
+
+node_list_button=ui.Button(title='L')
+node_list_button.action = node_list
+
+open_link_button=ui.Button(title=">")
+open_link_button.action = open_link
+
+new_node_button = ui.Button(title='+')
+new_node_button.action = new_node
+
+metadata_button = ui.Button(title='M')
+metadata_button.action = metadata_list
+
+delete_node_button = ui.Button(title='X')
+delete_node_button.action = delete_node
+
+buttons = [ 
+  open_link_button,
+  home_button,
+  new_node_button,
+  back_button,
+  forward_button,
+  node_list_button,
+  metadata_button,
+  delete_node_button
+  ]
+
+button_position = 0
+
+for button in buttons:
+  button.frame = (button_position, 0, button_position + button_width, button_height)
+  button_view.add_subview(button)
+  button_position += button_width
+  button.size_to_fit()
+  button.border_width=1
+
+open_home(None)
+main_view.present(hide_title_bar=True)
 
 
 
