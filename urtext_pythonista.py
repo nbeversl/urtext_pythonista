@@ -4,7 +4,6 @@ import os
 import datetime
 import ui
 import dialogs
-import console
 import re
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -18,6 +17,7 @@ machine_name = 'Nate\'s iPhone'
 print ('Urtext is loading '+urtext_project_path)
 
 # https://stackoverflow.com/questions/49349033/create-auto-complete-textfield-in-pythonista-3
+
 class AutoCompleter(ui.ListDataSource):
 	
 	def textfield_did_change(self, textfield):
@@ -49,6 +49,38 @@ class AutoCompleter(ui.ListDataSource):
 
 
 
+class TaggingAutoCompleter(ui.ListDataSource):
+	
+	def textfield_did_change(self, textfield):
+		
+		tag_dropDown.hidden = False
+		# an arbitrary list of autocomplete options
+		length = len(textfield.text)
+		entry = textfield.text.lower()
+		self.tags = main_view._UrtextProject.project.tagnames['tags']
+		options = [ x for x in self.tags.keys() if len(x) >= length and x[:length].lower() == entry]
+
+		# setting the items property automatically updates the list
+		self.items = options
+
+		# size the dropdown for up to five options
+		tag_dropDown.height = min(tag_dropDown.row_height * len(options), 5*tag_dropDown.row_height)
+
+	def textfield_did_end_editing(self, textfield):
+		#done editing, so hide and clear the dropdown
+		tag_dropDown.hidden = True
+		tag_search_field.hidden = True
+		self.items = []
+		tag_search_field.text = ''
+
+	def optionWasSelected(self, sender):
+		search_field.text = self.items[self.selected_row]
+		tag = self.items[self.selected_row]
+		insert = '/-- tags: '+tag+' --/'
+		tag_search_field.end_editing()
+		main_view.text_view.replace_range(
+			main_view.text_view.selected_range, 
+			insert)
 
 class MainView(ui.View):
 
@@ -68,16 +100,21 @@ class MainView(ui.View):
 		button_width = 32
 		
 		w,h = ui.get_screen_size()         
-
-		button_view = ui.View()
-		button_view.font='American Typewriter'
-		button_view.frame=(0, 20, w, 84)
-
+		self.h = h
+		self.scroll_view = ui.ScrollView()
+		self.scroll_view.frame = (0,50,w,h-84)
 		self.text_view=ui.TextView()
 		self.text_view.font = ('Helvetica Neue', 14)
-		self.text_view.frame=(0,84,w,h-84)
+		self.text_view.frame=(0,0,w,h)
 		self.text_view.auto_content_inset = True
 		
+		self.full_txt_search_field = ui.TextField()
+		self.full_txt_search_field.height = 40
+		self.full_txt_search_field.width = w*.8
+		self.full_txt_search_field.x = w/2 - self.full_txt_search_field.width/2
+		self.full_txt_search_field.y = h/3 - self.full_txt_search_field.height/2
+		self.full_txt_search_field.border_width = 1
+		self.full_txt_search_field.hidden = True
 
 		forward_button = ui.Button(title="->")
 		forward_button.action=self.nav_forward
@@ -116,9 +153,9 @@ class MainView(ui.View):
 		tag_from_other_button.action = self.tag_from_other
 
 		insert_tag_button = ui.Button(title='/--')
-		insert_tag_button.action = self.insert_tag
+		insert_tag_button.action = self.tag_autocomplete
 
-		search_button = ui.Button(title='?')
+		search_button = ui.Button(title='??')
 		search_button.action = self.search
 
 		pick_tag_button = ui.Button(title="t")
@@ -133,61 +170,61 @@ class MainView(ui.View):
 		compact_node_button = ui.Button(title='^')
 		compact_node_button.action = self.compact_node
 
-		snt = ui.Button(title='??')
+		snt = ui.Button(title='?')
 		snt.action = self.search_node_title
+
+		hide_kb = ui.Button(title='hide')
+		hide_kb.action = self.hide_keyboard
 
 		buttons = [ 
 			open_link_button,
+			save_button,
 			home_button,
-			new_node_button,
-			new_inline_node_button,
-			single_line_new_inline_node_button,
+			snt,			
+			search_button,		single_line_new_inline_node_button,
 			back_button,
 			forward_button,
-			node_list_button,
-			metadata_button,
-			delete_node_button,
-			save_button,
-			tag_from_other_button,
-			search_button,
-			insert_tag_button,
-			pick_tag_button,
 			timestamp_button,
+			insert_tag_button,
+			node_list_button,
+			new_inline_node_button,
+			delete_node_button,
+			new_node_button,
+			tag_from_other_button,
+			metadata_button,
+			pick_tag_button,
 			take_over_button,
 			compact_node_button,
-			snt
 			]
 
 		button_line = ui.ScrollView()
-		button_line.height = 64
-		button_line.width = len(buttons) * 32
+		button_line.height = 36
+		button_line.width = w
+		button_line.content_size = (len(buttons) * 32, 32)
 		button_line.x=0
-		button_line.y=200
+		button_line.y=20
 
 		button_x_position = 0
 		button_y_position = 0
 
-		self.add_subview(button_view)
-		self.add_subview(self.text_view)
+		self.scroll_view.add_subview(self.text_view)	
+		self.add_subview(self.scroll_view)
 		self.add_subview(button_line)
-		
+		self.add_subview(self.full_txt_search_field)
 
 		"""
 		Size the buttons
 		"""
 
 		for button in buttons:
+			button.corner_radius = 5
 			button.frame = (button_x_position, 
 				button_y_position, 
 				button_x_position + button_width, 
 				button_y_position + button_height)
-			#button_view.add_subview(button)
 			button_line.add_subview(button)
 			button_x_position += button_width
-			# if button_x_position >= w:
-			# 	button_x_position = 0
-			# 	button_y_position += 32
-			#button.size_to_fit()
+			button.size_to_fit()
 			button.border_width=1
 	
 	def save(self, sender):
@@ -220,8 +257,11 @@ class MainView(ui.View):
 				
 		position = self.text_view.selected_range[0] 
 		
-		line = get_full_line(position, self.text_view)
+		line = get_forward_line(position, self.text_view)
 		link = self._UrtextProject.project.get_link(line)
+		if not link:
+			line = get_backward_line(position, self.text_view)
+			link = self._UrtextProject.project.get_link(line)
 		if link:
 			if link[0] == 'NODE':
 				print('opening '+link[1])
@@ -266,8 +306,9 @@ class MainView(ui.View):
 		position = self._UrtextProject.project.nodes[node_id].ranges[0][0]
 		self._UrtextProject.project.nav_new(node_id)
 		self.text_view.selected_range = (position, position)
-				
-		#scroll_view.content_offset = (0, position / w)
+		print(position)
+		self.text_view.content_offset = (0, position /3 ) 
+		# this value just needs to be refined or better approximated
 
 	def pick_tag(self, sender):
 		tag_list = sorted(self._UrtextProject.project.tagnames['tags'].keys())
@@ -301,27 +342,27 @@ class MainView(ui.View):
 			self._UrtextProject.project.update()
 			self.open_file(self.current_open_file)
 	
-	def insert_tag(self, sender):
+	# def insert_tag(self, sender):
 
-		position = self.text_view.selected_range[0] 
+	# 	position = self.text_view.selected_range[0] 
 
-		backward_offset = 1
-		fragment = self.text_view.text[position-backward_offset:position]
+	# 	backward_offset = 1
+	# 	fragment = self.text_view.text[position-backward_offset:position]
 
-		while ' ' not in fragment and '\n' not in fragment:
-			backward_offset += 1
-			fragment = self.text_view.text[position-backward_offset:position]
-			if position - backward_offset <= 0:
-				backward_offset = 0
-				break
+	# 	while ' ' not in fragment and '\n' not in fragment:
+	# 		backward_offset += 1
+	# 		fragment = self.text_view.text[position-backward_offset:position]
+	# 		if position - backward_offset <= 0:
+	# 			backward_offset = 0
+	# 			break
 
-		tag = self._UrtextProject.project.complete_tag(fragment)
-		insert_text = u'/\u002D\u002D tags: '+tag+ u' \u002D\u002D/'
+	# 	tag = self._UrtextProject.project.complete_tag(fragment)
+	# 	insert_text = u'/\u002D\u002D tags: '+tag+ u' \u002D\u002D/'
 
-		self.text_view.replace_range(
-			(position-backward_offset, position),
-			insert_text)
-		self.text_view.selected_range = (position+10, position+10+len(tag))
+	# 	self.text_view.replace_range(
+	# 		(position-backward_offset, position),
+	# 		insert_text)
+	# 	self.text_view.selected_range = (position+10, position+10+len(tag))
 
 	def node_list(self, sender):
 		self.open_node('zzz')
@@ -329,22 +370,35 @@ class MainView(ui.View):
 	def metadata_list(self, sender):
 		self.open_node('zzy')
 
-	def search(self, sender):
-		string = console.input_alert('Full text search')
-		if string == None:
-			return
+	def search_project(self, sender):
+		string = self.full_txt_search_field.text
+		self.full_txt_search_field.hidden = True
 		results = self._UrtextProject.project.search(string)
 		self.save(None)
 		self.text_view.text = results
 		self.current_open_file = None # make sure this view doesn't overwrite another
 
+	def search(self, sender):
+		self.full_txt_search_field.text = ''
+		self.full_txt_search_field.hidden = False
+		self.full_txt_search_field.action = self.search_project
+
 	def search_node_title(self, sender):
 		search_field.hidden = False
-
 		dropDown.x = search_field.x
 		dropDown.y = search_field.y + search_field.height
 		dropDown.width = search_field.width
 		dropDown.row_height = search_field.height
+
+	def tag_autocomplete(self, sender):
+		tag_search_field.hidden = False
+		tag_dropDown.x = tag_search_field.x
+		tag_dropDown.y = tag_search_field.y + tag_search_field.height
+		tag_dropDown.width = tag_search_field.width
+		tag_dropDown.row_height = tag_search_field.height
+
+
+		
 
 	def nav_back(self, sender):
 
@@ -375,6 +429,9 @@ class MainView(ui.View):
 		self.text_view.replace_range(selection, insert_text)
 		offset = len(contents) + 2
 		self.text_view.selected_range = (selection[0] + offset, selection[0]+offset)
+
+	def hide_keyboard(self,sender):
+		main_view.end_editing()
 
 class UrtextWatcher(FileSystemEventHandler):
 
@@ -459,26 +516,23 @@ class UrtextWatcher(FileSystemEventHandler):
 				return None
 		return filename
  
-def get_full_line(position, text_view):
-	backward_offset = position
-	fragment = text_view.text[position - backward_offset:position]
-	while text_view.text[backward_offseet] != '\n':
-		backward_offset -= 1
-		if position - backward_offset <= 0:
-			backward_offset = 0
-			break
-	start = backward_offset
-
-	forward_offset = position		
+def get_forward_line(position, text_view):
+	forward = position +1		
 	length = len(text_view)
-	while text_view.text[forward_offseet] != '\n':
-		forward_offset += 1
-		fragment = fragment = text_view.text[position - backward_offset:position]
-		if position + backward_offset > length:
-			forward_offset = length
+	while '\n' not in text_view.text[position:forward]:
+		forward += 1
+		if forward == length:
 			break
-	end = forward_offset
-	return text_view.text[start:end]
+	return text_view.text[position:forward]
+
+def get_backward_line(position, text_view):
+	backward = position - 1
+	while '\n' not in text_view.text[backward:position]:
+		backward -= 1
+		if backward == 0:
+			break
+	return text_view.text[backward:position]
+
 
 
 
@@ -496,29 +550,53 @@ if __name__ == '__main__':
 		main_view.open_home(None)
 		main_view.present(hide_title_bar=True)
 
+		# title search field
+
 		search_field = ui.TextField()
 		search_field.height = 40
-		search_field.width = main_view.width*.67
+		search_field.width = main_view.width*.80
 		search_field.x = main_view.width/2 - search_field.width/2
 		search_field.y = main_view.height/3 - search_field.height/2
-		
+		search_field.border_width = 1
 		search_field.hidden = True
 
 		dropDown = ui.TableView()
 		dropDown.hidden = True
 
-		autocompleter = AutoCompleter(items=[])
-		autocompleter.action = autocompleter.optionWasSelected
-		
-		search_field.delegate = autocompleter
+		title_autocompleter = AutoCompleter(items=[])
+		title_autocompleter.action = title_autocompleter.optionWasSelected
 
+		search_field.delegate = title_autocompleter
+		
 		main_view.add_subview(dropDown)
 		main_view.add_subview(search_field)
 
-		dropDown.delegate = autocompleter
-		dropDown.data_source = autocompleter
+		dropDown.delegate = title_autocompleter
+		dropDown.data_source = title_autocompleter
 
-		
+		# repeating all the same for tag search
+
+		tag_search_field = ui.TextField()
+		tag_search_field.height = 40
+		tag_search_field.width = main_view.width*.80
+		tag_search_field.x = main_view.width/2 - search_field.width/2
+		tag_search_field.y = main_view.height/3 - search_field.height/2
+		tag_search_field.border_width = 1
+		tag_search_field.hidden = True
+
+		tag_dropDown = ui.TableView()
+		tag_dropDown.hidden = True
+
+		tag_autocompleter = TaggingAutoCompleter(items=[])
+		tag_autocompleter.action = tag_autocompleter.optionWasSelected
+
+		tag_search_field.delegate = tag_autocompleter
+
+		main_view.add_subview(tag_dropDown)
+		main_view.add_subview(tag_search_field)
+
+		tag_dropDown.delegate = tag_autocompleter
+		tag_dropDown.data_source = tag_autocompleter
 
 		while True:
 			time.sleep(1)
