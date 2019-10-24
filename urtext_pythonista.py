@@ -5,6 +5,7 @@ import datetime
 import ui
 import dialogs
 import re
+import math
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from app_single_launch import AppSingleLaunch
@@ -47,8 +48,6 @@ class AutoCompleter(ui.ListDataSource):
 		main_view.open_node(self.titles[self.items[self.selected_row]])
 		search_field.end_editing()
 
-
-
 class TaggingAutoCompleter(ui.ListDataSource):
 	
 	def textfield_did_change(self, textfield):
@@ -68,20 +67,19 @@ class TaggingAutoCompleter(ui.ListDataSource):
 
 	def textfield_did_end_editing(self, textfield):
 		#done editing, so hide and clear the dropdown
+		tag_search_field.text = ''
 		tag_dropDown.hidden = True
 		tag_search_field.hidden = True
 		self.items = []
-		tag_search_field.text = ''
+		
 
 	def optionWasSelected(self, sender):
 		search_field.text = self.items[self.selected_row]
 		tag = self.items[self.selected_row]
 		insert = '/-- tags: '+tag+' --/'
+		main_view.text_view.replace_range(main_view.text_view.selected_range, insert)
 		tag_search_field.end_editing()
-		main_view.text_view.replace_range(
-			main_view.text_view.selected_range, 
-			insert)
-
+		
 class MainView(ui.View):
 
 	def __init__(self, app: AppSingleLaunch):
@@ -158,8 +156,6 @@ class MainView(ui.View):
 		search_button = ui.Button(title='??')
 		search_button.action = self.search
 
-		pick_tag_button = ui.Button(title="t")
-		pick_tag_button.action = self.pick_tag
 
 		timestamp_button = ui.Button(title='<>')
 		timestamp_button.action = self.timestamp
@@ -180,19 +176,19 @@ class MainView(ui.View):
 			open_link_button,
 			save_button,
 			home_button,
-			snt,			
-			search_button,		single_line_new_inline_node_button,
+			new_node_button,
+			insert_tag_button,
+			snt,							
+			single_line_new_inline_node_button,
 			back_button,
 			forward_button,
 			timestamp_button,
-			insert_tag_button,
+			search_button,	
 			node_list_button,
 			new_inline_node_button,
 			delete_node_button,
-			new_node_button,
 			tag_from_other_button,
 			metadata_button,
-			pick_tag_button,
 			take_over_button,
 			compact_node_button,
 			]
@@ -302,24 +298,26 @@ class MainView(ui.View):
 	def open_node(self, node_id):
 		filename=self._UrtextProject.project.nodes[node_id].filename
 		self.open_file(filename)
-		time.sleep(0.3)
+		time.sleep(.5)
 		position = self._UrtextProject.project.nodes[node_id].ranges[0][0]
 		self._UrtextProject.project.nav_new(node_id)
-		self.text_view.selected_range = (position, position)
-		print(position)
-		self.text_view.content_offset = (0, position /3 ) 
-		# this value just needs to be refined or better approximated
+		view_width = self.text_view.width
+		font_height = self.text_view.font[1]
+		font_width = font_height * .35 # aproximation only
+		approx_chars_per_line = view_width / font_width
 
-	def pick_tag(self, sender):
-		tag_list = sorted(self._UrtextProject.project.tagnames['tags'].keys())
-		tag = dialogs.list_dialog(title="tags",
-			items=list(tag_list))
-		if not tag:
-			return
-		insert = '/-- tags: '+tag+' --/'
-		self.text_view.replace_range(
-			self.text_view.selected_range, 
-			insert)
+		contents = self.text_view.text
+		contents_until_position = contents[:position]
+		lines_to_scroll_past = contents_until_position.split('\n')
+		num_lines_to_scroll = 0
+		for line in lines_to_scroll_past:
+			view_lines = math.ceil(len(line) / approx_chars_per_line)
+			num_lines_to_scroll += view_lines
+
+		self.text_view.content_offset = (0, view_lines * font_height ) 
+		self.text_view.selected_range = (position, position)
+
+		# this value just needs to be refined or better approximated
 
 	def new_node(self, sender):        
 		new_node = self._UrtextProject.project.new_file_node(
@@ -341,28 +339,6 @@ class MainView(ui.View):
 				'/-- tags: done --/')
 			self._UrtextProject.project.update()
 			self.open_file(self.current_open_file)
-	
-	# def insert_tag(self, sender):
-
-	# 	position = self.text_view.selected_range[0] 
-
-	# 	backward_offset = 1
-	# 	fragment = self.text_view.text[position-backward_offset:position]
-
-	# 	while ' ' not in fragment and '\n' not in fragment:
-	# 		backward_offset += 1
-	# 		fragment = self.text_view.text[position-backward_offset:position]
-	# 		if position - backward_offset <= 0:
-	# 			backward_offset = 0
-	# 			break
-
-	# 	tag = self._UrtextProject.project.complete_tag(fragment)
-	# 	insert_text = u'/\u002D\u002D tags: '+tag+ u' \u002D\u002D/'
-
-	# 	self.text_view.replace_range(
-	# 		(position-backward_offset, position),
-	# 		insert_text)
-	# 	self.text_view.selected_range = (position+10, position+10+len(tag))
 
 	def node_list(self, sender):
 		self.open_node('zzz')
@@ -382,23 +358,26 @@ class MainView(ui.View):
 		self.full_txt_search_field.text = ''
 		self.full_txt_search_field.hidden = False
 		self.full_txt_search_field.action = self.search_project
+		self.full_txt_search_field.begin_editing()
 
 	def search_node_title(self, sender):
 		search_field.hidden = False
+		search_field.text=''
 		dropDown.x = search_field.x
 		dropDown.y = search_field.y + search_field.height
 		dropDown.width = search_field.width
 		dropDown.row_height = search_field.height
+		search_field.begin_editing()
 
 	def tag_autocomplete(self, sender):
 		tag_search_field.hidden = False
+		tag_search_field.text = ''
 		tag_dropDown.x = tag_search_field.x
 		tag_dropDown.y = tag_search_field.y + tag_search_field.height
 		tag_dropDown.width = tag_search_field.width
 		tag_dropDown.row_height = tag_search_field.height
-
-
 		
+		tag_search_field.begin_editing() 
 
 	def nav_back(self, sender):
 
@@ -417,7 +396,7 @@ class MainView(ui.View):
 		os.remove(os.path.join(self._UrtextProject.project.path, self.current_open_file))
 		self._UrtextProject.project.remove_file(self.current_open_file)
 		self._UrtextProject.project.update()
-		self.text_view.text=''
+		self.nav_back(None)
 	
 	def take_over(self, sender):
 		self._UrtextProject.project.lock(machine_name)
