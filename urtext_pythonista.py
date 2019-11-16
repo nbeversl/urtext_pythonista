@@ -6,9 +6,13 @@ import ui
 import dialogs
 import re
 import math
+import console
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from app_single_launch import AppSingleLaunch
+
+from fuzzywuzzy import fuzz
+
 
 urtext_project_path = '/private/var/mobile/Library/Mobile Documents/iCloud~com~omz-software~Pythonista3/Documents/archive'
 node_id_regex = r'\b[0-9,a-z]{3}\b'
@@ -28,7 +32,14 @@ class AutoCompleter(ui.ListDataSource):
 		length = len(textfield.text)
 		entry = textfield.text.lower()
 		self.titles = main_view._UrtextProject.project.titles()
-		options = [ x for x in self.titles.keys() if len(x) >= length and x[:length].lower() == entry]
+
+
+		titles_keys = self.titles.keys()
+
+		options = sorted(
+			titles_keys, 
+			key=lambda title: fuzz.ratio(entry, title), 
+			reverse=True)
 
 		# setting the items property automatically updates the list
 		self.items = options
@@ -67,17 +78,17 @@ class TaggingAutoCompleter(ui.ListDataSource):
 
 	def textfield_did_end_editing(self, textfield):
 		#done editing, so hide and clear the dropdown
-		tag_search_field.text = ''
+		if tag_search_field.text:
+
+			insert = '/-- tags: '+tag_search_field.text+' --/'
+			main_view.text_view.replace_range(main_view.text_view.selected_range, insert)
 		tag_dropDown.hidden = True
 		tag_search_field.hidden = True
+		tag_search_field.text=''
 		self.items = []
 		
-
 	def optionWasSelected(self, sender):
-		search_field.text = self.items[self.selected_row]
-		tag = self.items[self.selected_row]
-		insert = '/-- tags: '+tag+' --/'
-		main_view.text_view.replace_range(main_view.text_view.selected_range, insert)
+		tag_search_field.text = self.items[self.selected_row]       
 		tag_search_field.end_editing()
 		
 class MainView(ui.View):
@@ -86,9 +97,7 @@ class MainView(ui.View):
 		
 		self.app = app
 		self.name = "Pythonista Urtext" 
-		self._UrtextProject = UrtextWatcher(
-			urtext_project_path, 
-			machine_lock=machine_name)
+		self._UrtextProject = UrtextWatcher(urtext_project_path)
 		self.current_open_file = None
 
 		"""
@@ -139,7 +148,7 @@ class MainView(ui.View):
 		delete_node_button.action = self.delete_node
 
 		save_button = ui.Button(title='S')
-		save_button.action = self.save
+		save_button.action = self.manual_save
 
 		new_inline_node_button = ui.Button(title='{{')
 		new_inline_node_button.action = self.new_inline_node
@@ -156,7 +165,6 @@ class MainView(ui.View):
 		search_button = ui.Button(title='??')
 		search_button.action = self.search
 
-
 		timestamp_button = ui.Button(title='<>')
 		timestamp_button.action = self.timestamp
 
@@ -169,8 +177,11 @@ class MainView(ui.View):
 		snt = ui.Button(title='?')
 		snt.action = self.search_node_title
 
-		hide_kb = ui.Button(title='hide')
-		hide_kb.action = self.hide_keyboard
+		timeline_button = ui.Button(title='::')
+		timeline_button.action = self.show_timeline
+
+		insert_split_button = ui.Button(title='%')
+		insert_split_button.action = self.insert_split
 
 		buttons = [ 
 			open_link_button,
@@ -178,12 +189,13 @@ class MainView(ui.View):
 			home_button,
 			new_node_button,
 			insert_tag_button,
-			snt,							
+			snt,                            
 			single_line_new_inline_node_button,
 			back_button,
 			forward_button,
 			timestamp_button,
-			search_button,	
+			search_button,
+			insert_split_button,
 			node_list_button,
 			new_inline_node_button,
 			delete_node_button,
@@ -191,6 +203,7 @@ class MainView(ui.View):
 			metadata_button,
 			take_over_button,
 			compact_node_button,
+			timeline_button
 			]
 
 		button_line = ui.ScrollView()
@@ -203,7 +216,7 @@ class MainView(ui.View):
 		button_x_position = 0
 		button_y_position = 0
 
-		self.scroll_view.add_subview(self.text_view)	
+		self.scroll_view.add_subview(self.text_view)    
 		self.add_subview(self.scroll_view)
 		self.add_subview(button_line)
 		self.add_subview(self.full_txt_search_field)
@@ -223,6 +236,11 @@ class MainView(ui.View):
 			button.size_to_fit()
 			button.border_width=1
 	
+	def manual_save(self, sender):
+		self.save(None)
+		console.hud_alert('Saved')
+
+
 	def save(self, sender):
 		self.current_open_file
 		contents = self.text_view.text 
@@ -251,13 +269,9 @@ class MainView(ui.View):
 
 	def open_link(self, sender):
 				
-		position = self.text_view.selected_range[0] 
-		
-		line = get_forward_line(position, self.text_view)
-		link = self._UrtextProject.project.get_link(line)
-		if not link:
-			line = get_backward_line(position, self.text_view)
-			link = self._UrtextProject.project.get_link(line)
+		file_position = self.text_view.selected_range[0] 
+		line, line_position = get_full_line(file_position, self.text_view)
+		link = self._UrtextProject.project.get_link(line, position=line_position)
 		if link:
 			if link[0] == 'NODE':
 				print('opening '+link[1])
@@ -267,7 +281,11 @@ class MainView(ui.View):
 				# HTTP links not yet handled in Pythonista
 
 	def open_home(self, sender):
+		if 'home' not in self._UrtextProject.project.settings:
+			return
 		home_id = self._UrtextProject.project.settings['home']      
+		if home_id not in self._UrtextProject.project.nodes:
+			return
 		self._UrtextProject.project.nav_new(home_id)
 		self.open_node(home_id)
 
@@ -298,26 +316,46 @@ class MainView(ui.View):
 	def open_node(self, node_id):
 		filename=self._UrtextProject.project.nodes[node_id].filename
 		self.open_file(filename)
-		time.sleep(.5)
-		position = self._UrtextProject.project.nodes[node_id].ranges[0][0]
 		self._UrtextProject.project.nav_new(node_id)
-		view_width = self.text_view.width
-		font_height = self.text_view.font[1]
-		font_width = font_height * .35 # aproximation only
-		approx_chars_per_line = view_width / font_width
-
+		
+		#
+		# attempt to scroll to position (work in progress)
+		# this does not work at all 
+		#
+	
+		"""position = self._UrtextProject.project.nodes[node_id].ranges[0][0]
 		contents = self.text_view.text
 		contents_until_position = contents[:position]
-		lines_to_scroll_past = contents_until_position.split('\n')
-		num_lines_to_scroll = 0
-		for line in lines_to_scroll_past:
-			view_lines = math.ceil(len(line) / approx_chars_per_line)
-			num_lines_to_scroll += view_lines
+		total_view_lines = self.view_lines(contents)
+		scroll_past_lines = self.view_lines(contents_until_position)		
+		percent_to_scroll = scroll_past_lines / total_view_lines
+		
+		print('TOTAL LINES')
+		print(total_view_lines)
 
-		self.text_view.content_offset = (0, view_lines * font_height ) 
-		self.text_view.selected_range = (position, position)
+		print('SCROLL PAST')
+		print(scroll_past_lines)
 
-		# this value just needs to be refined or better approximated
+		print('PERCENT TO SCROLL IS')
+		print(percent_to_scroll)
+
+		# this feature of Pythonista apparently just does not work.
+		self.scroll_view.content_offset = (0, self.text_view.height * percent_to_scroll) 
+		self.text_view.selected_range = (position, position)"""
+
+	def view_lines(self,content):
+		# approximate numbers from the view
+		view_width = self.text_view.width
+		font_height = self.text_view.font[1]
+		font_width = font_height * .5 # aproximation only
+		approx_chars_per_line = view_width / font_width
+		lines = content.split('\n')
+		view_lines = 0
+		for line in lines:
+			this_line = math.ceil(len(line) / approx_chars_per_line)
+			view_lines += this_line
+
+		return view_lines
 
 	def new_node(self, sender):        
 		new_node = self._UrtextProject.project.new_file_node(
@@ -399,8 +437,9 @@ class MainView(ui.View):
 		self.nav_back(None)
 	
 	def take_over(self, sender):
-		self._UrtextProject.project.lock(machine_name)
-
+		self._UrtextProject.project.lock()
+		self._UrtextProject.paused = False
+		
 	def compact_node(self, sender):
 		selection = self.text_view.selected_range
 		contents = self.text_view.text[selection[0]:selection[1]]   
@@ -412,108 +451,67 @@ class MainView(ui.View):
 	def hide_keyboard(self,sender):
 		main_view.end_editing()
 
+	def show_timeline(self, sender):
+		if self.current_open_file:
+			self.save(None)
+		nodes = [self._UrtextProject.project.nodes[node_id] for node_id in self._UrtextProject.project.nodes]
+		timeline = self._UrtextProject.project.build_timeline(nodes)
+		self.text_view.text = timeline
+		self.current_open_file = None
+
+	def insert_split(self, sender):
+		node_id = self._UrtextProject.project.next_index()
+		selection = self.text_view.selected_range
+		self.text_view.replace_range(selection, '/-- id: '+node_id+' --/\n% ')
+
 class UrtextWatcher(FileSystemEventHandler):
 
-	def __init__(self, urtext_project_path, machine_lock=None):
+	def __init__(self, urtext_project_path):
 		super().__init__()
 		self.project = UrtextProject(urtext_project_path)
-		if machine_lock:
-			self.project.lock(machine_name)
-
+		self.paused = False
+	
 	def on_created(self, event):
-		if not self.project.check_lock(machine_name):
-			return
-		if event.is_directory:
-			return None
-
-		filename = os.path.basename(event.src_path)
-		if self.project.parse_file(filename, re_index=True) == None:
-		  self.project.log_item(filename + ' not added.')
-		  return
-		self.project.log_item(filename + ' CREATED/modified. Updating the project object')
-		self.project.update()
+		if self.paused:
+			return 
+		successful, lock_name = self.project.on_created(event.src_path)
+		if not successful:
+			self.show_lock(lock_name)
 
 	def on_modified(self, event):
-	
-		
-		# if filename == self.current_open_file:
-		#   reload_file = dialog.list_dialog(
-		#       title=filename+' has changed',
-		#       items = [ 'Reload','Keep Working'])
-		#   if reload_file == 'Reload':
-		#       open_file(filename, save_first=False)
-
-		filename = os.path.basename(event.src_path)
-		
-
-		if not self.project.check_lock(machine_name):
-			return
-		
-		if event.is_directory:
-			return None
-		
-		if self.filter(filename) == None:
-		  return        
-		do_not_update = [
-		   'index', 
-		   os.path.basename(os.path.dirname(self.project.path)),
-		   self.project.nodes['zzz'].filename,
-		   self.project.nodes['zzy'].filename,
-		   self.project.settings['logfile'],
-		   '00000.txt'
-		  ]
-		if filename in do_not_update or '.git' in filename:
-		  return
-
-		self.project.log_item('MODIFIED ' + filename +' - Updating the project object')
-		self.project.parse_file(filename, re_index=True)
-		self.project.update()
-
-	def on_deleted(self, event):
-		if not self.project.check_lock('THIS MACHINE'):
-		  return
-
-		filename = os.path.basename(event.src_path)
-		self.project.log.info(filename + ' DELETED')
-		if filename in self.project.files:
-		  self.project.remove_file(filename)
+		if self.paused:
+			return 
+		successful, lock_name = self.project.on_modified(event.src_path)    
+		if not successful:
+			self.show_lock(lock_name)
 
 	def on_moved(self, event):
-		if not self.project.check_lock('THIS MACHINE'):
-		  return
-		if self.filter(event.src_path) == None:
-		  return
-		old_filename = os.path.basename(event.src_path)
-		new_filename = os.path.basename(event.dest_path)
-		if old_filename in self.project.files:
-			self.project.log_item('RENAMED'+ old_filename +' to ' + new_filename)
-			self.project.handle_renamed(old_filename, new_filename)
+		if self.paused:
+			return 
+		successful, lock_name = self.project.on_moved(event.src_path)   
+		if not successful:
+			self.show_lock(lock_name)
 	
-	def filter(self, filename):
-		for fragment in ['urtext_log', '.git','.icloud']:
-			if fragment in filename:
-				return None
-		return filename
- 
-def get_forward_line(position, text_view):
-	forward = position +1		
-	length = len(text_view)
-	while '\n' not in text_view.text[position:forward]:
-		forward += 1
-		if forward == length:
-			break
-	return text_view.text[position:forward]
+	def show_lock(self, lock_name):
+		self.paused = True
+		take_over = console.alert('Compile Lock','Urtext watch is locked by '+ lock_name +'.',
+			'Take Over', 'Use without watch')
 
-def get_backward_line(position, text_view):
-	backward = position - 1
-	while '\n' not in text_view.text[backward:position]:
-		backward -= 1
-		if backward == 0:
-			break
-	return text_view.text[backward:position]
+		if take_over == 0:
+			self.project.lock()
+			self.paused=False
+			return True
+		return False
 
-
-
+def get_full_line(position, text_view):
+	lines = text_view.text.split('\n')
+	total_length = 0
+	for line in lines:
+		total_length += len(line) + 1
+		if total_length >= position:
+			distance_from_end_of_line = total_length - position
+			position_in_line = len(line) - distance_from_end_of_line
+			return (line, position_in_line)
 
 """
 Start the app
