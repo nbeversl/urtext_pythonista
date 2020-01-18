@@ -13,7 +13,7 @@ __all__ = [
 
 
 DEBUG = False
-LOCK_PATH = '~/Documents/site-packages/single_launch.lock'
+LOCK_PATH = '~/Documents/single_launch.lock'
 
 
 def _object_for_id(id_: int) -> Any:
