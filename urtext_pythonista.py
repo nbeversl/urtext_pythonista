@@ -13,12 +13,13 @@ from fuzzywuzzy import fuzz
 from objc_util import *
 import syntax
 
-
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 app = None
+main_view = None
 
 class AutoCompleter(ui.ListDataSource):
-    
+    """ Used for searching Node Names """
+
     def textfield_did_change(self, textfield):
         
         main_view.dropDown.hidden = False
@@ -52,23 +53,36 @@ class AutoCompleter(ui.ListDataSource):
         return matches
 
     def textfield_did_end_editing(self, textfield):
-        #done editing, so hide and clear the dropdown
         main_view.dropDown.hidden = True
         main_view.search_field.hidden = True
         self.items = []
         main_view.search_field.text = ''
 
-    def optionWasSelected(self, sender):
-        main_view.search_field.text = self.items[self.selected_row]
+    """ Various functions that can be called from this field """
+
+    def open_node(self, sender):
+        main_view.search_field.text = self.items[self.selected_row]        
         main_view.open_node(self.titles[self.items[self.selected_row]])
+        main_view.search_field.end_editing()        
+
+    def link_to_node(self, sender):
+        main_view.search_field.text = self.items[self.selected_row]
+        main_view.tv.replace_range(main_view.tv.selected_range, '| >'+self.titles[self.items[self.selected_row]])
+        main_view.search_field.end_editing()
+
+    def point_to_node(self, sender):
+        main_view.search_field.text = self.items[self.selected_row]
+        main_view.tv.replace_range(main_view.tv.selected_range, '| >>'+self.titles[self.items[self.selected_row]])
         main_view.search_field.end_editing()
 
 class TaggingAutoCompleter(ui.ListDataSource):
-    
+    """ Used for searching project tag names """
+
     def textfield_did_change(self, textfield):
         
         main_view.tag_dropDown.hidden = False
         main_view.tag_dropDown.bring_to_front()
+        
         # an arbitrary list of autocomplete options
         length = len(textfield.text)
         entry = textfield.text.lower()
@@ -84,7 +98,6 @@ class TaggingAutoCompleter(ui.ListDataSource):
     def textfield_did_end_editing(self, textfield):
         #done editing, so hide and clear the dropdown
         if main_view.tag_search_field.text:
-
             insert = '/-- tags: '+main_view.tag_search_field.text+' --/'
             main_view.tv.replace_range(main_view.tv.selected_range, insert)
         main_view.tag_dropDown.hidden = True
@@ -96,14 +109,28 @@ class TaggingAutoCompleter(ui.ListDataSource):
         main_view.tag_search_field.text = self.items[self.selected_row]       
         main_view.tag_search_field.end_editing()
 
-class MyTextFieldDelegate (object):
+
+class FullTextSearchResults(object):
+
+    def textfield_did_change(self, textfield):
+        results = main_view._UrtextProjectList.current_project.search_term(textfield.text)
+        main_view.tv.text = results
+        on_main_thread(syntax.setAttribs)(main_view.tv, initial=True)
+
+    def textfield_did_end_editing(self, textfield):
+        main_view.full_txt_search_field.hidden = True
+
+
+class SyntaxHighlighter (object):
 
     def textview_did_change(self, textview):
+        """ Re-run syntax highlighting whenever the text content changes"""
         on_main_thread(syntax.setAttribs)(textview)
 
     def textview_did_change_selection(self, textview):
+        """ Hide all popups which clicking in the text editor """
         main_view.project_selector.hidden = True
-
+        main_view.menu_list.hidden = True
 
 class MainView(ui.View):
 
@@ -111,6 +138,7 @@ class MainView(ui.View):
         
         self.app = app
         self.name = "Pythonista Urtext" 
+        self.urtext_project_path = urtext_project_path
         self._UrtextProjectList = ProjectList(urtext_project_path)
         self.current_open_file = None
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -121,21 +149,21 @@ class MainView(ui.View):
         button_height = 42
         button_width = 42
         
-        w,h = ui.get_screen_size()         
-        self.h = h
-    
-        mystro=ObjCClass('NSMutableAttributedString').alloc().initWithString_('')
-        UIColor=ObjCClass('UIColor')
+        w,h = ui.get_screen_size()
+        self.height = h
+        self.width = w
 
+        # main text (editor) view
         self.tv=ui.TextView()
         self.tv.frame=(0,0,w,h-100)
+        
         self.tv.font = ('Helvetica Neue', 40)
         self.tv.auto_content_inset = True
         self.tv.background_color = '#282923'
         self.tv.text_color = 'white'
         #self.tv.flex="WHR"
 
-        viewDelegate = MyTextFieldDelegate()
+        viewDelegate = SyntaxHighlighter()
         self.tv.delegate = viewDelegate
         
         self.full_txt_search_field = ui.TextField()
@@ -145,7 +173,9 @@ class MainView(ui.View):
         self.full_txt_search_field.y = h/3 - self.full_txt_search_field.height/2
         self.full_txt_search_field.border_width = 1
         self.full_txt_search_field.hidden = True
-        
+        full_text_search = FullTextSearchResults()
+        self.full_txt_search_field.delegate = full_text_search
+
         self.search_field = ui.TextField()
         self.size_field(self.search_field)
         self.search_field.hidden = True
@@ -157,17 +187,26 @@ class MainView(ui.View):
         self.dropDown = ui.TableView()
         self.dropDown.hidden = True
         
-        self.project_list = ui.ListDataSource(items=[])
-        self.project_list.action = self.switch_project
-        
+        # UI List of projects
+        self.project_list = ui.ListDataSource(items=[]) 
+
         self.project_selector = ui.TableView()
         self.project_selector.hidden = False 
         self.project_selector.delegate = self.project_list
         self.project_selector.data_source = self.project_list
         self.size_field(self.project_selector)
         
+        # Pop Up Urtext Features Menu
         menu_options = ui.ListDataSource(items=[
-            'Initialize New Project',
+            'Initialize New Project',  
+            'Move file to another project',
+            'Reload Projects',
+            'Switch Projects',          
+            'Delete Node',
+            'Refresh Woosh Index',
+            'Show Project Timeline',          
+            'Link >',
+            'Point >>',
            ])
         menu_options.action = self.delegate_menu
 
@@ -175,12 +214,17 @@ class MainView(ui.View):
         self.menu_list.hidden = True
         self.menu_list.delegate = menu_options
         self.menu_list.data_source = menu_options
-        self.size_field(self.menu_list)
+        self.menu_list.height = 160
+        self.menu_list.width = self.tv.width*.80
+        self.menu_list.x = self.tv.width/2 - self.menu_list.width/2
+        self.menu_list.y = self.tv.height/3 - self.menu_list.height/2
+        self.menu_list.border_width = 1
 
         self.title_autocompleter = AutoCompleter(items=[])
-        self.title_autocompleter.action = self.title_autocompleter.optionWasSelected
+        
         self.dropDown.delegate = self.title_autocompleter
         self.dropDown.data_source = self.title_autocompleter
+        
         self.search_field.delegate = self.title_autocompleter
         
         self.tag_dropDown = ui.TableView()
@@ -192,8 +236,8 @@ class MainView(ui.View):
 
         self.tag_dropDown.delegate = self.tag_autocompleter
         self.tag_dropDown.data_source = self.tag_autocompleter
-
-        menu_button = ui.Button(title="O")
+        self.tv.width = w
+        menu_button = ui.Button(title="=")
         menu_button.action = self.show_menu
 
         forward_button = ui.Button(title="->")
@@ -217,9 +261,6 @@ class MainView(ui.View):
         metadata_button = ui.Button(title='M')
         metadata_button.action = self.metadata_list
 
-        delete_node_button = ui.Button(title='X')
-        delete_node_button.action = self.delete_node
-
         save_button = ui.Button(title='S')
         save_button.action = self.manual_save
 
@@ -241,55 +282,60 @@ class MainView(ui.View):
         timestamp_button = ui.Button(title='<>')
         timestamp_button.action = self.timestamp
 
-        take_over_button = ui.Button(title='!')
-        take_over_button.action = self.take_over
+        manual_timestamp_button = ui.Button(title='<..>')
+        manual_timestamp_button.action = self.manual_timestamp
 
         compact_node_button = ui.Button(title='^')
         compact_node_button.action = self.compact_node
 
-        snt = ui.Button(title='?')
-        snt.action = self.search_node_title
-
-        timeline_button = ui.Button(title='::')
-        timeline_button.action = self.show_timeline
+        search_by_title = ui.Button(title='?')
+        search_by_title.action = self.search_node_title
 
         insert_split_button = ui.Button(title='%')
         insert_split_button.action = self.insert_split
 
-        refresh_whoosh_index = ui.Button(title='@')
-        refresh_whoosh_index.action = self.refresh_whoosh_index
-
-        switch_project_button = ui.Button(title='=')
-        switch_project_button.action = self.select_project
-
-        delete_word_button = ui.Button(title='<-')
+        delete_word_button = ui.Button(title='<=')
         delete_word_button.action = self.delete_word
+
+        insert_dynamic_def_button = ui.Button(title='[[')
+        insert_dynamic_def_button.action = self.insert_dynamic_def
+
+        insert_id_button = ui.Button(title='id')
+        delete_word_button.action = self.insert_id
+
+        insert_pipe_button = ui.Button(title='|')
+        insert_pipe_button.action = self.insert_pipe
+
+        insert_backtick_button = ui.Button(title='`')
+        insert_backtick_button.action = self.insert_backtick
+
+
 
         buttons = [ 
             open_link_button,
+            back_button,
             menu_button,
             save_button,
             home_button,
-            switch_project_button,
             new_node_button,
             compact_node_button,
             insert_tag_button,
-            snt,                   
+            search_by_title,                   
             single_line_new_inline_node_button,
-            back_button,
             forward_button,
             timestamp_button,
+            manual_timestamp_button,
             search_button,
             insert_split_button,
             node_list_button,
             new_inline_node_button,
-            delete_node_button,
             tag_from_other_button,
+            insert_dynamic_def_button,
             metadata_button,
-            take_over_button,
-            timeline_button,
-            refresh_whoosh_index,
-            delete_word_button
+            delete_word_button,
+            insert_id_button,
+            insert_pipe_button,
+            insert_backtick_button
             ]
 
         button_line = ui.ScrollView()
@@ -330,20 +376,63 @@ class MainView(ui.View):
         self.add_subview(button_line)
         tvo = ObjCInstance(self.tv)
         btn_ln = ObjCInstance(button_line)
-
-        # this line crashes iPhone
         tvo.setInputAccessoryView_(btn_ln)
+
+        print(self.tv.width)
+        print(ui.get_screen_size())
+
+    def insert_dynamic_def(self,sender):
+        node_id = self.new_inline_node(None, locate_inside=False)
+        position = self.tv.selected_range[0]
+        self.tv.replace_range(self.tv.selected_range, '\n\n[[ ID:' + node_id + '\n\n ]]')
+        self.tv.selected_range = (position + 12, position + 12)
+        
+    def insert_pipe(self, sender):
+        self.tv.replace_range(self.tv.selected_range, '|')
+
+    def insert_backtick(self, sender):
+        self.tv.replace_range(self.tv.selected_range, '`')
+
+    def insert_id(self, sender):
+        new_id = self._UrtextProjectList.current_project.next_index()
+        self.tv.replace_range(self.tv.selected_range, '/--id:'+new_id+'--/')
+
+    def move_file(self, sender):
+        self.project_list.items = self._UrtextProjectList.project_titles()
+        self.project_list.action = self.execute_move_file
+        self.project_selector.height = 35*len(self.project_list.items)
+        self.project_selector.hidden = False
+        self.project_selector.bring_to_front()
+        
+    def manual_timestamp(self, sender):
+        position = self.tv.selected_range[0]
+        self.tv.replace_range(
+            self.tv.selected_range, 
+            '<>')
+        self.tv.selected_range = (position+1,position+1)
+
+    def execute_move_file(self, sender):
+        self.project_selector.hidden = True    
+        selection = sender.selected_row
+        selected_project = self._UrtextProjectList.get_project(self.project_list.items[selection])
+        if self._UrtextProjectList.move_file(self.current_open_file, selected_project):
+            console.hud_alert('File Moved' ,'success',2)
+
+    def reload_projects(self, sender):
+        self._UrtextProjectList = ProjectList(self.urtext_project_path)
+        self.open_home(None)
+        console.hud_alert('Project List Reloaded' ,'success',2)
 
     def delete_word(self, sender):
         contents = self.tv.text 
         position = self.tv.selected_range[0] 
-        contents_before_cursor = contents[:position]
-        new_contents_before_cursor = ' '.join(contents_before_cursor.split(' ')[:-1])
-        deleted_amount = len(contents_before_cursor) - len(new_contents_before_cursor)
-        self.tv.text = contents.replace(contents_before_cursor, new_contents_before_cursor, 1)
-        position -= deleted_amount
+        distance_back = 1
+        selection = contents[position - distance_back:position]
+        while len(selection) and selection[0] != ' ' and position - distance_back > 0 :
+            distance_back += 1
+            selection = contents[position-distance_back:position]
+        self.tv.replace_range( (position-distance_back, position),'')
         on_main_thread(syntax.setAttribs)(self.tv)
-        self.tv.selected_range = (position, position)
 
     def delegate_menu(self, sender):
         self.menu_list.hidden=True
@@ -357,17 +446,52 @@ class MainView(ui.View):
                 path = os.path.join(self._UrtextProjectList.current_project.path, new_project_path)
                 self._UrtextProjectList.init_new_project(path)
             t.action=init_new_project
-        
+        """
+            'Initialize New Project',
+            'Move file to another project',
+            'Reload Projects',
+            'Switch Projects',
+            'Delete Node',
+            'Show Project Timeline',
+            'Link >',
+            'Point >>'
+
+        """
+        if sender.selected_row == 1:
+            self.move_file(None)
+
+        if sender.selected_row == 2:
+            self.reload_projects(None)
+
+        if sender.selected_row == 3:
+            self.select_project(None)
+
+        if sender.selected_row == 4: 
+            self.delete_node(None)
+
+        if sender.selected_row == 5:
+            self._UrtextProjectList.current_project.rebuild_search_index()
+
+        if sender.selected_row == 6:
+            self.show_timeline(None)
+
+        if sender.selected_row == 7:
+            self.link_to_node(None)
+
+        if sender.selected_row == 8:
+            self.point_to_node(None)
+
+    
     def show_menu(self, option_list):
         self.menu_list.hidden=False
         self.menu_list.bring_to_front()
 
     def select_project(self, sender): 
-        s = sender.objc_instance.firstResponder()
         self.project_list.items = self._UrtextProjectList.project_titles()
         self.project_selector.height = 35*len(self.project_list.items)
         self.project_selector.hidden = False
         self.project_selector.bring_to_front()
+        self.project_list.action = self.switch_project
 
     def switch_project(self, sender):
       
@@ -460,7 +584,7 @@ class MainView(ui.View):
             return
         self.open_node(home_id)
 
-    def new_inline_node(self, sender):
+    def new_inline_node(self, sender, locate_inside=True):
         metadata={ 'tags': '',
                    'from': 'iPhone'}
         selection = self.tv.selected_range
@@ -470,7 +594,9 @@ class MainView(ui.View):
                 contents=contents,
                 metadata=metadata)
         self.tv.replace_range(selection, new_inline_node_contents)
-        self.tv.selected_range = (selection[0]+3, selection[0]+3)
+        if locate_inside:
+            self.tv.selected_range = (selection[0]+3, selection[0]+3)
+        return node_id
 
     def new_inline_node_single(self, sender):
         metadata={ 'tags': '',
@@ -484,10 +610,10 @@ class MainView(ui.View):
         self.tv.replace_range(selection, new_inline_node_contents)
         self.tv.selected_range = (selection[0]+3, selection[0]+3)
 
-    #@on_main_thread
     def open_node(self, node_id):
         filename=self._UrtextProjectList.current_project.nodes[node_id].filename
-        self.open_file(filename)
+        if os.path.join(self._UrtextProjectList.current_project.path, filename) != self.current_open_file:
+            self.open_file(filename)
         self._UrtextProjectList.current_project.nav_new(node_id)
         position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
         self.tv.selected_range = (position, position)
@@ -516,27 +642,22 @@ class MainView(ui.View):
     def node_list(self, sender):
         if 'zzz' in self._UrtextProjectList.current_project.nodes:
             self.open_node('zzz')
+        else:
+            console.hud_alert('No zzz node','error',0.5)
 
     def metadata_list(self, sender):
         if 'zzy' in self._UrtextProjectList.current_project.nodes:
             self.open_node('zzy')
 
-    def search_project(self, sender):
-        string = self.full_txt_search_field.text
-        self.full_txt_search_field.hidden = True
-        results = self._UrtextProjectList.current_project.search(string)
-        self.save(None)
-        self.tv.text = results
-        self.current_open_file = None # make sure this view doesn't overwrite another
-
     def search(self, sender):
+        self.save(None)
+        self.current_open_file = None # scratch view / make sure this view doesn't overwrite another
         self.full_txt_search_field.text = ''
         self.full_txt_search_field.hidden = False
-        self.full_txt_search_field.action = self.search_project
         self.full_txt_search_field.begin_editing()
         self.full_txt_search_field.bring_to_front()
 
-    def search_node_title(self, sender):
+    def show_search_and_dropdown(self):
         self.search_field.hidden = False
         self.search_field.text=''
         self.dropDown.x = self.search_field.x
@@ -545,6 +666,18 @@ class MainView(ui.View):
         self.dropDown.row_height = self.search_field.height
         self.search_field.begin_editing()
         self.search_field.bring_to_front()
+
+    def search_node_title(self, sender):
+        self.title_autocompleter.action = self.title_autocompleter.open_node
+        self.show_search_and_dropdown()
+
+    def link_to_node(self, sender):
+        self.title_autocompleter.action = self.title_autocompleter.link_to_node
+        self.show_search_and_dropdown()
+
+    def point_to_node(self, sender):
+        self.title_autocompleter.action = self.title_autocompleter.point_to_node
+        self.show_search_and_dropdown()
 
     def tag_autocomplete(self, sender):
         self.tag_search_field.hidden = False
@@ -560,13 +693,13 @@ class MainView(ui.View):
     def nav_back(self, sender):
 
         last_node = self._UrtextProjectList.current_project.nav_reverse()
-        if last_node:     
+        if last_node and last_node in self._UrtextProjectList.current_project.nodes:     
             self.open_node(last_node)
 
     def nav_forward(self, sender):
 
         next_node = self._UrtextProjectList.current_project.nav_advance()
-        if next_node:
+        if next_node and next_node in self._UrtextProjectList.current_project.nodes:
             self.open_node(next_node)
 
     def delete_node(self, sender):
@@ -602,10 +735,7 @@ class MainView(ui.View):
         node_id = self._UrtextProjectList.current_project.next_index()
         selection = self.tv.selected_range
         self.tv.replace_range(selection, '/-- id: '+node_id+' --/\n% ')
-
-    def refresh_whoosh_index(self, sender):
-        self._UrtextProjectList.current_project.rebuild_search_index()
-
+        
     def refresh_project(self, sender):
         pass
 
@@ -625,16 +755,18 @@ def launch_urtext_pythonista(args):
     urtext_project_path = args['path']
 
     global app
-
+    global main_view
     print ('Urtext is loading '+urtext_project_path)
     app = AppSingleLaunch("Pythonisa Urtext")
     if not app.is_active():
         main_view = MainView(urtext_project_path, app)
-        main_view.flex = 'HR'
+        #main_view.flex = 'HR'
         app.will_present(main_view)
         if args['first']:
-            main_view._UrtextProjectList.set_current_project(args['first'])            
+            main_view._UrtextProjectList.set_current_project_by_title(args['first'])            
         main_view.open_home(None)
+       
+
         main_view.present(hide_title_bar=True)
 
         # remnant from the watchdog, currently keeps global variables from being cleared.
