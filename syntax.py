@@ -1,7 +1,6 @@
 from objc_util import *
 import re
 
-
 unobtrusive = UIColor.colorWithRed(0.25, green=0.25, blue=0.25, alpha=1.0)
 green = UIColor.colorWithRed(0.44, green=0.84, blue=0.42, alpha=1.0)
 bright_yellow = UIColor.colorWithRed(1.0, green=1.0, blue=0.5, alpha=1.0)
@@ -11,13 +10,17 @@ red = UIColor.colorWithRed(1, green=0.44, blue=0.92, alpha=1.0)
 colors = {
 
     # dynamic definition 
-    r'\[\[.*?\]\]': {                                               
-        
-        'self': bright_yellow,
-        
-         'inside' : [ { r';' : {'self':green } } ] 
+    r'\[\[.*?\]\]': {                                                     
+        'self': bright_yellow,       
+        'inside' : [ { r';' : {'self':green } } ] 
         },                       
     
+    # compact node opener
+    r'^[^\S\n]*?\^' : {
+       'self':red,
+       'flags':re.MULTILINE,
+    },
+
     # metadata wrappers
     r'(\/--(?:(?!\/--).)*?--\/)': {                                 
 
@@ -60,37 +63,29 @@ colors = {
     r'(?<=>)[0-9,a-z]{3}':{ 
         'self':unobtrusive
         },         
-    
+   
     #link titles
     r'\|[^<][^\s].*?(?=>{1,2}[0-9,a-z]{3}\b[^\n]*?)': {  
         'self':bright_yellow,
         'flags': 0
-        },
-
-    # compact node opener
-    r'^[^\S\n]*\^' : {
-       'self':bright_yellow,
-    }
+        },  
 }
-
 
 wrappers = [ 
   r'\{\{',
-  r'\}\}'
-  #r'^[^\S\n]*\^', # compact node opener
-  # r'\n', # compact node closer
+  r'\}\}',
+  r'^[^\S\n]*?\^', # compact node opener
+  r'\n',
   ]
 
 wrapper_color = unobtrusive
 
 def find_wrappers(string):
-  
    found_wrappers = {}
    for wrapper in wrappers:
-      found = re.finditer(wrapper,string)
+      found = re.finditer(wrapper,string, flags=re.MULTILINE)
       for item in found:
          found_wrappers[item.start()] = wrapper
-
    return found_wrappers
 
 
@@ -115,9 +110,6 @@ def nest_colors(mystro, mystr, offset, colors):
 @on_main_thread
 def setAttribs(tv, initial=False):
    font = ObjCClass('UIFont').fontWithName_size_('Arial',15)
-   
-   
-   file_position = tv.selected_range[0]
    mystr = tv.text
    mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
    original_mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
@@ -131,31 +123,34 @@ def setAttribs(tv, initial=False):
    mystro.addAttribute_value_range_('NSBackgroundColor',background,NSRange(0,len(mystr)))
 
    wrappers = find_wrappers(mystr)
+   
    if wrappers:    
-    positions = sorted(wrappers.keys())
     compact_node_open = False
-
+    positions = sorted(wrappers.keys())
     for index in range(len(positions)):
         position = positions[index]
-        print(wrappers[position])
-        mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),wrapper_color,NSRange(position,2))
-        if wrappers[position] == '\{\{' :
+
+        if wrappers[position] == '\\n':
+            compact_node_open = False
+            continue
+
+        if wrappers[position] == '\\{\\{' :
             value += 0.025
             starting_offset = 0
             amount_offset = 2
-        # elif wrappers[position] == '^[^\S\n]*\^':
-        #   compact_node_open = True
+            mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),wrapper_color,NSRange(position,2))
         
-        # elif wrappers[position] == '\n' and compact_node_open:
-        #     value -= 0.025
-        #     starting_offset = 2
-        #     amount_offset = 0
-        #     compact_node_open = False
+        if wrappers[position] == '^[^\\S\\n]*?\\^':        
+            value += 0.025
+            starting_offset = 0
+            amount_offset = 0
+            compact_node_open = True
 
-        else: # }}
+        if wrappers[position] == '\\}\\}' :
             value -= 0.025
             starting_offset = 2
             amount_offset = 0
+            mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),wrapper_color,NSRange(position,2))
 
         # If this is not the last closing wrapper:
         if position < positions[-1]:
@@ -164,10 +159,20 @@ def setAttribs(tv, initial=False):
             start = position + starting_offset
 
             # calculate the ending position from the next symbol back to this one
-            amount = positions[index+1] - start + amount_offset
+
+            # get position
+            next_index = index + 1
+            if not compact_node_open:
+              while wrappers[positions[next_index]] == '\\n' and next_index < len(positions) - 1:
+                next_index += 1;
+            
+            amount = positions[next_index] - start + amount_offset
 
             background = UIColor.colorWithRed(value, green=value, blue=value, alpha=1.0)
             mystro.addAttribute_value_range_('NSBackgroundColor', background,NSRange(start,amount))
+            if compact_node_open:
+              compact_node_open = False
+              value -= 0.025
 
         else:
             start = position + 2
@@ -175,19 +180,8 @@ def setAttribs(tv, initial=False):
             background = UIColor.colorWithRed(value, green=value, blue=value, alpha=1.0)
             mystro.addAttribute_value_range_('NSBackgroundColor',background,NSRange(start, amount))
 
-
    if initial or (mystro != original_mystro):
       tvo=ObjCInstance(tv)
-      
-      #if not initial:
-         #tvo.setScrollEnabled_(False)
-      
       tvo.setAllowsEditingTextAttributes_(True)
       tvo.setAttributedText_(mystro)     
-      
-      #if not initial:
-         #tvo.setScrollEnabled_(True)
-
-      if not initial and file_position < len(mystr):
-          tv.selected_range = (file_position, file_position) 
-
+    
