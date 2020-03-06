@@ -69,6 +69,11 @@ colors = {
         'self':bright_yellow,
         'flags': 0
         },  
+
+    # other project link (change to bold, or something)
+    r'\{\"(.*?)\"\}' : {
+        'self':bright_yellow,
+    }
 }
 
 wrappers = [ 

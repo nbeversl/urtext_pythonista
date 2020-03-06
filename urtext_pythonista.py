@@ -123,18 +123,32 @@ class FullTextSearchResults(object):
     def textfield_did_end_editing(self, textfield):
         main_view.full_txt_search_field.hidden = True
 
-class SyntaxHighlighter (object):
+class SyntaxHighlighter(object):
+
+    def __init__(self):
+        self.last_time = time.time()
 
     def textview_did_change(self, textview):
         """ Re-run syntax highlighting whenever the text content changes"""        
         file_position = textview.selected_range
-        syntax.setAttribs(textview)               
-        textview.selected_range = file_position
+        syntax.setAttribs(textview)
+        if file_position[1] < len(textview.text):         
+            textview.selected_range = file_position
+
+        #global browsing_history
+        #if browsing_history:
+        #    return
+        now = time.time()
+        if now - self.last_time < 10:
+            return
+        self.last_time = now 
+        main_view.take_snapshot()
 
     def textview_did_change_selection(self, textview):
         """ Hide all popups which clicking in the text editor """
         main_view.project_selector.hidden = True
         main_view.menu_list.hidden = True
+    
 
 class MainView(ui.View):
 
@@ -165,7 +179,6 @@ class MainView(ui.View):
         self.tv.auto_content_inset = True
         self.tv.background_color = '#282923'
         self.tv.text_color = 'white'
-        #self.tv.flex="WHR"
 
         viewDelegate = SyntaxHighlighter()
         self.tv.delegate = viewDelegate
@@ -389,15 +402,14 @@ class MainView(ui.View):
         btn_ln = ObjCInstance(button_line)
         tvo.setInputAccessoryView_(btn_ln)
 
-        seconds = 10
-        s = sched.scheduler(time.time, time.sleep)
-        s.enter(seconds, 1, self.save_snapshot, argument=(s, seconds))
-        self.executor.submit(s.run)
+        # seconds = 10
+        # s = sched.scheduler(time.time, time.sleep)
+        # s.enter(seconds, 1, self.save_snapshot, argument=(s, seconds))
+        # self.executor.submit(s.run)
 
-    def save_snapshot(self, scheduler, interval):
+    def take_snapshot(self):
         if self.current_open_file:
             self._UrtextProjectList.current_project.snapshot_diff(self.current_open_file, self.tv.text)
-        scheduler.enter(interval, 1, self.save_snapshot, argument=(scheduler, interval) )
 
     def search_all_project(self, sender):
         self.title_autocompleter.action = self.title_autocompleter.open_node
@@ -445,6 +457,8 @@ class MainView(ui.View):
         selection = sender.selected_row
         selected_project = self.project_list.items[selection]
         if self._UrtextProjectList.move_file(self.current_open_file, selected_project):
+            self.current_open_file = None
+            self.nav_back(None)
             console.hud_alert('File Moved' ,'success',2)
 
     def reload_projects(self, sender):
@@ -474,7 +488,7 @@ class MainView(ui.View):
                 print('textfield changed:', textfield.text )  
                 new_project_path = textfield.text
                 textfield.hidden=True 
-                path = os.path.join(self._UrtextProjectList.current_project.path, new_project_path)
+                path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
                 self._UrtextProjectList.init_new_project(path)
             t.action=init_new_project
         """
@@ -603,7 +617,7 @@ class MainView(ui.View):
         link = self._UrtextProjectList.get_link_and_set_project(line, position=line_position)
         if link:
             if link[0] == 'NODE':
-                _UrtextProjectList.nav_new(link[1])
+                self._UrtextProjectList.nav_new(link[1])
                 self.open_node(link[1])
 
     def open_home(self, sender):
@@ -611,6 +625,8 @@ class MainView(ui.View):
         if home_id:
             self._UrtextProjectList.nav_new(home_id)
             self.open_node(home_id)
+        else:
+            console.hud_alert('No home node for this project','error',0.5)
 
     def new_inline_node(self, sender, locate_inside=True):
         metadata={ 'tags': '',
@@ -642,7 +658,6 @@ class MainView(ui.View):
         filename=self._UrtextProjectList.current_project.nodes[node_id].filename
         if os.path.join(self._UrtextProjectList.current_project.path, filename) != self.current_open_file:
             self.open_file(filename)
-        self._UrtextProjectList.nav_new(node_id)
         position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
         self.tv.selected_range = (position, position)
         if position:      
