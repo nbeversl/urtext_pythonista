@@ -7,14 +7,25 @@ bright_yellow = UIColor.colorWithRed(1.0, green=1.0, blue=0.5, alpha=1.0)
 blue_bright = UIColor.colorWithRed(0.08, green=0.24, blue=0.72, alpha=1.0)
 blue_brighter = UIColor.colorWithRed(0.28, green=0.44, blue=0.92, alpha=1.0)
 red = UIColor.colorWithRed(1, green=0.44, blue=0.92, alpha=1.0)
+
+
 colors = {
 
     # dynamic definition 
     r'\[\[.*?\]\]': {                                                     
         'self': bright_yellow,       
-        'inside' : [ { r';' : {'self':green } } ] 
-        },                       
-    
+        'inside' : [ 
+          { r'(INCLUDE|METADATA|ID|TREE|SHOW|TIMELINE|EXCLUDE|FORMAT|SEARCH|LIMIT|SORT|EXPORT|FILE|TAG_ALL)(?=\(.*?\))' : { 'self':green },
+            r'([\w]+)(?=\:)': { 'self':red },       # keys
+            r'(?<=\:)([\w]+)' : { 'self' : unobtrusive }, # values, single-word
+            r'\b(reverse|preformat|all|meta|inline|indexed|and|or|multiline_meta|indent|timestamp|markdown|html|plaintext|source|recursive)\b' :
+                  { 'self' : red },   # keywords
+            r'([\w]+)\:("[\w\s]+")' : { 'self' : red}, # value strings (quotations)
+            } 
+          ],
+
+      },
+
     # compact node opener
     r'^[^\S\n]*?\^' : {
        'self':red,
