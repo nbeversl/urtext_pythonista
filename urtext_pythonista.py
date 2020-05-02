@@ -45,7 +45,6 @@ class MainView(ui.View):
 
         # main text (editor) view
         self.tv=ui.TextView()
-        self.tv.delegate
 
         self.tv.frame=(0,15,w,h-100)
         
@@ -191,9 +190,6 @@ class MainView(ui.View):
         search_by_title = ui.Button(title='?')
         search_by_title.action = self.search_node_title
 
-        insert_split_button = ui.Button(title='%')
-        insert_split_button.action = self.insert_split
-
         delete_word_button = ui.Button(title='<=')
         delete_word_button.action = self.delete_word
 
@@ -235,7 +231,6 @@ class MainView(ui.View):
             timestamp_button,
             manual_timestamp_button,
             search_button,
-            insert_split_button,
             node_list_button,
             new_inline_node_button,
             copy_link_to_current_node_button,
@@ -356,6 +351,8 @@ class MainView(ui.View):
             self.current_open_file = None
             self.nav_back(None)
             console.hud_alert('File Moved' ,'success',2)
+        else:
+            console.hud_alert('Error happened. Check the Urtext console' ,'error',2)
 
     def reload_projects(self, sender):
         self.close()
@@ -517,14 +514,14 @@ class MainView(ui.View):
         file_position = self.tv.selected_range[0] 
         line, line_position = get_full_line(file_position, self.tv)
         link = self._UrtextProjectList.get_link_and_set_project(line, position=line_position)
+
         if not link:
         	return None
+
         if link[0] == 'NODE':
-            self.open_node(link[1])
-            
+            self.open_node(link[1])            
         if link[0] == 'HTTP':       	
         	webbrowser.open('safari-'+link[1])
-        	
         if link[0] == 'FILE':
         	webbrowser.open('sharedfiles://'+link[1])
 
@@ -564,13 +561,20 @@ class MainView(ui.View):
 
     def open_node(self, 
             node_id, 
-            add_to_nav=True # so the method can be called withou affecting nav
+            position=None,
+            add_to_nav=True # so the method can be called without affecting nav
             ):
 
-        filename=self._UrtextProjectList.current_project.nodes[node_id].filename
+        if node_id not in self._UrtextProjectList.current_project.nodes:
+            console.hud_alert('Node '+node_id+' not in current project' ,'error',0.5)
+            return
+
+        filename = self._UrtextProjectList.current_project.nodes[node_id].filename
         if os.path.join(self._UrtextProjectList.current_project.path, filename) != self.current_open_file:
             self.open_file(filename)
-        position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
+
+        if not position:
+            position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
         self.tv.selected_range = (position, position)
         
         if position:
@@ -687,11 +691,6 @@ class MainView(ui.View):
         timeline = self._UrtextProjectList.current_project.build_timeline(nodes)
         self.tv.text = timeline
         self.current_open_file = None
-
-    def insert_split(self, sender):
-        node_id = self._UrtextProjectList.current_project.next_index()
-        selection = self.tv.selected_range
-        self.tv.replace_range(selection, '/-- id: '+node_id+' --/\n% ')
         
     def refresh_project(self, sender):
         pass
@@ -827,10 +826,12 @@ class SyntaxHighlighter(object):
         syntax.setAttribs(textview)
         if file_position[1] < len(textview.text):         
             textview.selected_range = file_position
+       
+        destination_node = main_view._UrtextProjectList.is_in_export(main_view.current_open_file, file_position[0])
+        if destination_node:
+            # TODO: undo the manual change made to the view
+            main_view.open_node(destination_node[0], position=destination_node[1])
 
-        #global browsing_history
-        #if browsing_history:
-        #    return
         now = time.time()
         if now - self.last_time < 10:
             return
@@ -843,8 +844,7 @@ class SyntaxHighlighter(object):
         main_view.menu_list.hidden = True
         if not main_view.updating_history:
             main_view.history_view.hidden = True
-                
-
+            
 def get_full_line(position, tv):
     lines = tv.text.split('\n')
     total_length = 0
