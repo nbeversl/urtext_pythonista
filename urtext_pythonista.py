@@ -42,11 +42,12 @@ class MainView(ui.View):
         w,h = ui.get_screen_size()
         self.height = h
         self.width = w
+        self.frame= (0,15,w,h)
 
         # main text (editor) view
         self.tv=ui.TextView()
 
-        self.tv.frame=(0,15,w,h-100)
+        self.tv.frame=(0,0,w,h)
         
         self.tv.font = ('Helvetica Neue', 40)
         self.tv.auto_content_inset = True
@@ -139,34 +140,28 @@ class MainView(ui.View):
         menu_button = ui.Button(title="=")
         menu_button.action = self.show_menu
         
-        switch_project_button = ui.Button(title="P")
+        switch_project_button = ui.Button(title="o")
         switch_project_button.action = self.select_project
 
-        forward_button = ui.Button(title="->")
+        forward_button = ui.Button(title=">")
         forward_button.action=self.nav_forward
 
-        back_button = ui.Button(title='<-')
+        back_button = ui.Button(title='<')
         back_button.action=self.nav_back
 
-        home_button=ui.Button(title='H')
+        home_button=ui.Button(title='h')
         home_button.action=self.open_home
 
-        node_list_button=ui.Button(title='L')
-        node_list_button.action = self.node_list
-
-        open_link_button=ui.Button(title=">")
+        open_link_button=ui.Button(title="/")
         open_link_button.action = self.open_link
 
         new_node_button = ui.Button(title=';')
         new_node_button.action = self.new_node
 
-        metadata_button = ui.Button(title='M')
-        metadata_button.action = self.metadata_list
-
         save_button = ui.Button(title='S')
         save_button.action = self.manual_save
 
-        new_inline_node_button = ui.Button(title='{{')
+        new_inline_node_button = ui.Button(title='{')
         new_inline_node_button.action = self.new_inline_node
         
         tag_from_other_button = ui.Button(title='D')
@@ -178,7 +173,7 @@ class MainView(ui.View):
         search_button = ui.Button(title='??')
         search_button.action = self.search
 
-        timestamp_button = ui.Button(title='<>')
+        timestamp_button = ui.Button(title='t')
         timestamp_button.action = self.timestamp
 
         manual_timestamp_button = ui.Button(title='<..>')
@@ -193,7 +188,7 @@ class MainView(ui.View):
         delete_word_button = ui.Button(title='<=')
         delete_word_button.action = self.delete_word
 
-        insert_dynamic_def_button = ui.Button(title='[[')
+        insert_dynamic_def_button = ui.Button(title='[')
         insert_dynamic_def_button.action = self.insert_dynamic_def
 
         insert_id_button = ui.Button(title='i')
@@ -208,14 +203,18 @@ class MainView(ui.View):
         search_all_project = ui.Button(title='*')
         search_all_project.action = self.search_all_project
 
-        browse_history_button = ui.Button(title='U')
+        browse_history_button = ui.Button(title='g')
         browse_history_button.action = self.browse_history
 
-        copy_link_to_current_node_button = ui.Button(title='C')
+        copy_link_to_current_node_button = ui.Button(title='c')
         copy_link_to_current_node_button.action = self.copy_link_to_current_node
+
+        copy_link_to_current_node_with_project_button = ui.Button(title='^c')
+        copy_link_to_current_node_with_project_button.action = self.copy_link_to_current_node_with_project
 
         buttons = [ 
             open_link_button,
+            search_by_title,    
             browse_history_button,
             back_button,
             menu_button,
@@ -226,17 +225,15 @@ class MainView(ui.View):
             new_node_button,
             compact_node_button,
             insert_tag_button,
-            search_by_title,                   
             forward_button,
             timestamp_button,
             manual_timestamp_button,
             search_button,
-            node_list_button,
             new_inline_node_button,
             copy_link_to_current_node_button,
+            copy_link_to_current_node_with_project_button,
             tag_from_other_button,
             insert_dynamic_def_button,
-            metadata_button,
             insert_id_button,
             insert_pipe_button,
             insert_backtick_button,
@@ -525,17 +522,22 @@ class MainView(ui.View):
         if link[0] == 'FILE':
         	webbrowser.open('sharedfiles://'+link[1])
 
-    def copy_link_to_current_node(self, sender):
+    def copy_link_to_current_node(self, sender, include_project=False):
         if not self.current_open_file:
             return None
         file_position = self.tv.selected_range[0] 
         node_id = self._UrtextProjectList.current_project.get_node_id_from_position(
                 self.current_open_file, 
                 file_position)
-        title = self._UrtextProjectList.current_project.nodes[node_id].title
-        link = '| '+ title + ' >' + node_id
+        link = self._UrtextProjectList.build_contextual_link(
+            node_id,
+            include_project=include_project)
         clipboard.set(link)
         console.hud_alert(link+ ' copied to the clipboard.','success',0.5)
+    
+    def copy_link_to_current_node_with_project(self, sender):
+        return self.copy_link_to_current_node(include_project=True)
+
 
     def open_home(self, sender):
         home_id = self._UrtextProjectList.current_project.get_home()      
@@ -706,7 +708,7 @@ class HistoryView(object):
         main_view.updating_history = False
 
 class AutoCompleter(ui.ListDataSource):
-    """ Used for searching Node Names """
+    """ Used for searching Nodes and doing operations on the selected """
 
     def textfield_did_change(self, textfield):
         
@@ -756,13 +758,22 @@ class AutoCompleter(ui.ListDataSource):
         main_view.search_field.end_editing()        
 
     def link_to_node(self, sender):
+        # could be refactored into Urtext library
         main_view.search_field.text = self.items[self.selected_row]
-        main_view.tv.replace_range(main_view.tv.selected_range, '| >'+self.titles[self.items[self.selected_row]][1])
+        link = main_view._UrtextProjectList.build_contextual_link(
+            self.titles[self.items[self.selected_row]][1],
+            project_title=self.titles[self.items[self.selected_row]][0])
+        main_view.tv.replace_range(main_view.tv.selected_range, link)
         main_view.search_field.end_editing()
 
     def point_to_node(self, sender):
+        # could be refactored into Urtext library
         main_view.search_field.text = self.items[self.selected_row]
-        main_view.tv.replace_range(main_view.tv.selected_range, '| >>'+self.titles[self.items[self.selected_row]][1])
+        link = main_view._UrtextProjectList.build_contextual_link(
+            self.titles[self.items[self.selected_row]][1], 
+            project_title=self.titles[self.items[self.selected_row]][0],
+            pointer=True) 
+        main_view.tv.replace_range(main_view.tv.selected_range, link)
         main_view.search_field.end_editing()
 
 class TaggingAutoCompleter(ui.ListDataSource):
