@@ -106,6 +106,7 @@ class MainView(ui.View):
             'Show Project Timeline',          
             'Link >',
             'Point >>',
+            'Pop Node'
            ])
         menu_options.action = self.delegate_menu
 
@@ -321,6 +322,15 @@ class MainView(ui.View):
 
     def insert_backtick(self, sender):
         self.tv.replace_range(self.tv.selected_range, '`')
+    
+    def pop_node(self, sender):
+        
+        self.save(None)
+        filename = self.current_open_file
+        position = self.tv.selected_range[0]
+        future = self._UrtextProjectList.current_project.pop_node(filename=filename, position=position)
+        if future:
+            self.executor.submit(self.refresh_open_file_if_modified, future)
 
     def insert_id(self, sender):
         new_id = self._UrtextProjectList.current_project.next_index()
@@ -362,6 +372,8 @@ class MainView(ui.View):
     def delete_word(self, sender):
         contents = self.tv.text 
         position = self.tv.selected_range[0] 
+        if position == 0:
+            return
         distance_back = 1
         selection = contents[position - distance_back:position]
         while len(selection) and selection[0] != ' ' and position - distance_back > 0 :
@@ -376,7 +388,6 @@ class MainView(ui.View):
             t=ui.TextField(frame=(0,0,300,75))
             self.add_subview(t)
             def init_new_project(textfield):
-                print('textfield changed:', textfield.text )  
                 new_project_path = textfield.text
                 textfield.hidden=True 
                 path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
@@ -390,7 +401,8 @@ class MainView(ui.View):
             'Delete Node',
             'Show Project Timeline',
             'Link >',
-            'Point >>'
+            'Point >>',
+            'Pop Node'
         """
         if sender.selected_row == 1:
             self.move_file(None)
@@ -416,7 +428,9 @@ class MainView(ui.View):
         if sender.selected_row == 8:
             self.point_to_node(None)
 
-    
+        if sender.selected_row == 9:
+            self.pop_node(None)
+
     def show_menu(self, option_list):
         self.menu_list.hidden=False
         self.menu_list.bring_to_front()
@@ -460,17 +474,19 @@ class MainView(ui.View):
         contents = self.tv.text 
 
         if self.current_open_file:
+
             with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file),'w', encoding='utf-8') as d:
                 d.write(contents)
                 d.close()
-            
+            print('saved '+self.current_open_file)
             future = self._UrtextProjectList.current_project.on_modified(self.current_open_file)
             if future:
                 self.executor.submit(self.refresh_open_file_if_modified, future)
-            
-    def refresh_open_file_if_modified(self, future):
+
+    def refresh_open_file_if_modified(self, future, position=None):
         modified_files = future.result()
         if os.path.basename(self.current_open_file) in modified_files:    
+            
             tvo = ObjCInstance(self.tv)
             selected_range = tvo.selectedRange()
             with open(self.current_open_file,'r', encoding='utf-8') as d:
@@ -481,7 +497,10 @@ class MainView(ui.View):
             console.hud_alert('Current file was modified, refreshing','success',1) 
 
             tvo.scrollRangeToVisible(selected_range) 
+            if position:
+                self.tv.selected_range=(position, position)
             self.tv.begin_editing()
+
 
     def open_file(self, filename, save_first=True):
 
@@ -511,16 +530,20 @@ class MainView(ui.View):
         file_position = self.tv.selected_range[0] 
         line, line_position = get_full_line(file_position, self.tv)
         link = self._UrtextProjectList.get_link_and_set_project(line, position=line_position)
-
         if not link:
         	return None
-
+        if link[0] == 'EDITOR_LINK':
+            self.open_file(link[1])
+            return
         if link[0] == 'NODE':
-            self.open_node(link[1])            
-        if link[0] == 'HTTP':       	
+            self.open_node(link[1])
+            return            
+        if link[0] == 'HTTP':  
         	webbrowser.open('safari-'+link[1])
+        	return
         if link[0] == 'FILE':
         	webbrowser.open('sharedfiles://'+link[1])
+        	return
 
     def copy_link_to_current_node(self, sender, include_project=False):
         if not self.current_open_file:
@@ -533,10 +556,10 @@ class MainView(ui.View):
             node_id,
             include_project=include_project)
         clipboard.set(link)
-        console.hud_alert(link+ ' copied to the clipboard.','success',0.5)
+        console.hud_alert(link+ ' copied to the clipboard.','success',2)
     
     def copy_link_to_current_node_with_project(self, sender):
-        return self.copy_link_to_current_node(include_project=True)
+        return self.copy_link_to_current_node(None, include_project=True)
 
 
     def open_home(self, sender):
@@ -602,7 +625,7 @@ class MainView(ui.View):
         link = self._UrtextProjectList.current_project.get_link(line)
         if link and link[0] == 'NODE':
             future = self._UrtextProjectList.current_project.tag_other_node(link[1], '/-- tags: done --/')
-            self.refresh_open_file_if_modified(future)
+            self.executor.submit(self.refresh_open_file_if_modified, future)
 
     def node_list(self, sender):
         if 'zzz' in self._UrtextProjectList.current_project.nodes:
@@ -677,11 +700,21 @@ class MainView(ui.View):
         
     def compact_node(self, sender):
         selection = self.tv.selected_range
-        contents = self.tv.text[selection[0]:selection[1]]   
+        contents = self.tv.text[selection[0]:selection[1]]
+        end_of_line = self.find_end_of_line(selection[1])
+
         insert_text = self._UrtextProjectList.current_project.add_compact_node(contents=contents)           
-        self.tv.replace_range(selection, insert_text)
-        offset = len(contents) + 2
-        self.tv.selected_range = (selection[0] + offset, selection[0]+offset)
+
+        self.tv.replace_range((end_of_line,end_of_line), '\n' + insert_text + '\n')
+        self.tv.selected_range = (end_of_line + 3, end_of_line + 3)
+
+    def find_end_of_line(self, position):
+        contents = self.tv.text
+        while contents[position] != '\n':
+            position += 1
+            if position == len(contents):
+                break
+        return position
 
     def hide_keyboard(self,sender):
         self.end_editing()
@@ -818,12 +851,13 @@ class TaggingAutoCompleter(ui.ListDataSource):
 
 class FullTextSearchResults(object):
 
-    def textfield_did_change(self, textfield):
-        results = main_view._UrtextProjectList.current_project.search_term(textfield.text)
-        main_view.tv.text = results
-        on_main_thread(syntax.setAttribs)(main_view.tv, initial=True)
-
     def textfield_did_end_editing(self, textfield):
+        search = main_view._UrtextProjectList.current_project.search_term(textfield.text)
+        search.initiate_search()
+        while not search.complete:
+            time.sleep(0.1)      
+        main_view.tv.text = '\n'.join(search.result)
+        on_main_thread(syntax.setAttribs)(main_view.tv, initial=True)
         main_view.full_txt_search_field.hidden = True
 
 class SyntaxHighlighter(object):
@@ -855,6 +889,12 @@ class SyntaxHighlighter(object):
         main_view.menu_list.hidden = True
         if not main_view.updating_history:
             main_view.history_view.hidden = True
+
+    def textview_did_end_editing(self, textview):
+        print('Focus Lost. Saving current file '+main_view.current_open_file)
+        print(datetime.datetime.now())
+        main_view.save(None)
+
             
 def get_full_line(position, tv):
     lines = tv.text.split('\n')
