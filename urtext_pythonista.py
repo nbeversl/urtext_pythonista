@@ -22,6 +22,7 @@ app = None
 main_view = None
 
 
+
 class MainView(ui.View):
 
     def __init__(self, urtext_project_path, app: AppSingleLaunch):
@@ -31,6 +32,7 @@ class MainView(ui.View):
         self.urtext_project_path = urtext_project_path
         self._UrtextProjectList = ProjectList(urtext_project_path)
         self.current_open_file = None
+        self.saved = None
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.updating_history = False
         """
@@ -483,6 +485,8 @@ class MainView(ui.View):
             if future:
                 self.executor.submit(self.refresh_open_file_if_modified, future)
 
+            self.saved = True
+
     def refresh_open_file_if_modified(self, future, position=None):
         modified_files = future.result()
         if os.path.basename(self.current_open_file) in modified_files:    
@@ -866,7 +870,8 @@ class SyntaxHighlighter(object):
         self.last_time = time.time()
 
     def textview_did_change(self, textview):
-        """ Re-run syntax highlighting whenever the text content changes"""        
+        """ Re-run syntax highlighting whenever the text content changes"""  
+        main_view.saved = False
         file_position = textview.selected_range
         syntax.setAttribs(textview)
         if file_position[1] < len(textview.text):         
@@ -890,12 +895,6 @@ class SyntaxHighlighter(object):
         if not main_view.updating_history:
             main_view.history_view.hidden = True
 
-    def textview_did_end_editing(self, textview):
-        print('Focus Lost. Saving current file '+main_view.current_open_file)
-        print(datetime.datetime.now())
-        main_view.save(None)
-
-            
 def get_full_line(position, tv):
     lines = tv.text.split('\n')
     total_length = 0
@@ -913,11 +912,15 @@ def launch_urtext_pythonista(args):
 
     global app
     global main_view
+
+    #https://forum.omz-software.com/search/set_idle_timer_disabled?in=titlesposts
+    on_main_thread(console.set_idle_timer_disabled)(True)
+
     print ('Urtext is loading '+urtext_project_path)
     app = AppSingleLaunch("Pythonisa Urtext")
     if not app.is_active():
         main_view = MainView(urtext_project_path, app)
-        #main_view.flex = 'HR'
+
         app.will_present(main_view)
         if args['first']:
             main_view._UrtextProjectList.set_current_project(args['first'])            
@@ -927,6 +930,9 @@ def launch_urtext_pythonista(args):
         # remnant from the watchdog, currently keeps global variables from being cleared.
         # see this thread for other solutions: https://forum.omz-software.com/topic/5440/prevent-duplicate-launch-from-shortcut/8
         while True:
-             time.sleep(.1) 
-
+            time.sleep(1)
+            if console.is_in_background() and not main_view.saved:
+                print('Focus Lost. Saving current file '+main_view.current_open_file)
+                print(datetime.datetime.now())
+                main_view.save(None) 
 
