@@ -21,8 +21,6 @@ node_id_regex = r'\b[0-9,a-z]{3}\b'
 app = None
 main_view = None
 
-
-
 class MainView(ui.View):
 
     def __init__(self, urtext_project_path, app: AppSingleLaunch):
@@ -44,12 +42,12 @@ class MainView(ui.View):
         w,h = ui.get_screen_size()
         self.height = h
         self.width = w
-        self.frame= (0,15,w,h)
+        self.frame= (0,0,w,h)
 
         # main text (editor) view
         self.tv=ui.TextView()
 
-        self.tv.frame=(0,0,w,h)
+        self.tv.frame=(0,18,w,h)
         
         self.tv.font = ('Helvetica Neue', 40)
         self.tv.auto_content_inset = True
@@ -104,7 +102,6 @@ class MainView(ui.View):
             'Reload Projects',
             'Switch Projects',          
             'Delete Node',
-            'Refresh Woosh Index',
             'Show Project Timeline',          
             'Link >',
             'Point >>',
@@ -129,6 +126,8 @@ class MainView(ui.View):
         
         self.search_field.delegate = self.title_autocompleter
         
+        self.textfield=ui.TextField(frame=(20,40,300,80))
+
         self.tag_dropDown = ui.TableView()
         self.tag_dropDown.hidden = True
 
@@ -215,6 +214,9 @@ class MainView(ui.View):
         copy_link_to_current_node_with_project_button = ui.Button(title='^c')
         copy_link_to_current_node_with_project_button.action = self.copy_link_to_current_node_with_project
 
+        hide_keyboard_button = ui.Button(title='↓')
+        hide_keyboard_button.action = self.hide_keyboard
+
         buttons = [ 
             open_link_button,
             search_by_title,    
@@ -241,6 +243,7 @@ class MainView(ui.View):
             insert_pipe_button,
             insert_backtick_button,
             search_all_project,
+            hide_keyboard_button
             ]
 
         button_line = ui.ScrollView()
@@ -261,6 +264,8 @@ class MainView(ui.View):
         self.add_subview(self.project_selector)
         self.add_subview(self.menu_list)
         self.add_subview(self.history_view)
+        self.add_subview(self.textfield)     
+
         """
         Size the buttons
         """
@@ -297,6 +302,9 @@ class MainView(ui.View):
         self.history_view.height = 160     # 4 cels high
         self.history_view.hidden = False
         self.history_view.bring_to_front()
+    
+    def hide_keyboard(self, sender):
+        self.tv.end_editing()
 
     def take_snapshot(self):
         if self.current_open_file:
@@ -306,12 +314,6 @@ class MainView(ui.View):
         self.title_autocompleter.action = self.title_autocompleter.open_node
         self.title_autocompleter.titles = self._UrtextProjectList.titles()
         self.show_search_and_dropdown()
-
-    def layout(self):
-        w,h = ui.get_screen_size()
-        self.height = h
-        self.width = w
-        self.tv.frame=(0,0,w,h-100)
 
     def insert_dynamic_def(self,sender):
         node_id = self.new_inline_node(None, locate_inside=False)
@@ -384,28 +386,30 @@ class MainView(ui.View):
         self.tv.replace_range( (position-distance_back, position),'')
         on_main_thread(syntax.setAttribs)(self.tv)
 
+    def init_new_project(self, sender):
+        new_project_path = sender.text
+        self.textfield.hidden=True 
+        path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
+        self._UrtextProjectList.init_new_project(path)
+
     def delegate_menu(self, sender):
         self.menu_list.hidden=True
+        
+        """
+            0  'Initialize New Project', 
+            1 'Move file to another project',her project',
+            2 'Reload Projects',
+            3 'Switch Projects',          
+            4 'Delete Node',
+            5 'Show Project Timeline',        
+            6 'Link >',
+            7 'Point >>',
+            8 'Pop Node'
+        """
+
         if sender.selected_row == 0: # Initialize new project
-            t=ui.TextField(frame=(0,0,300,75))
-            self.add_subview(t)
-            def init_new_project(textfield):
-                new_project_path = textfield.text
-                textfield.hidden=True 
-                path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
-                self._UrtextProjectList.init_new_project(path)
-            t.action=init_new_project
-        """
-            'Initialize New Project',
-            'Move file to another project',
-            'Reload Projects',
-            'Switch Projects',
-            'Delete Node',
-            'Show Project Timeline',
-            'Link >',
-            'Point >>',
-            'Pop Node'
-        """
+            self.textfield.action=self.init_new_project
+
         if sender.selected_row == 1:
             self.move_file(None)
 
@@ -419,18 +423,15 @@ class MainView(ui.View):
             self.delete_node(None)
 
         if sender.selected_row == 5:
-            self._UrtextProjectList.current_project.rebuild_search_index()
-
-        if sender.selected_row == 6:
             self.show_timeline(None)
 
-        if sender.selected_row == 7:
+        if sender.selected_row == 6:
             self.link_to_node(None)
 
-        if sender.selected_row == 8:
+        if sender.selected_row == 7:
             self.point_to_node(None)
 
-        if sender.selected_row == 9:
+        if sender.selected_row == 8:
             self.pop_node(None)
 
     def show_menu(self, option_list):
@@ -534,21 +535,22 @@ class MainView(ui.View):
         file_position = self.tv.selected_range[0] 
         line, line_position = get_full_line(file_position, self.tv)
         link = self._UrtextProjectList.get_link_and_set_project(line, position=line_position)
+
         if not link:
         	return None
-        if link[0] == 'EDITOR_LINK':
-            self.open_file(link[1])
-            return
-        if link[0] == 'NODE':
-            self.open_node(link[1])
-            return            
-        if link[0] == 'HTTP':  
-        	webbrowser.open('safari-'+link[1])
-        	return
-        if link[0] == 'FILE':
-        	webbrowser.open('sharedfiles://'+link[1])
-        	return
 
+        if link[0] == 'EDITOR_LINK':
+            return self.open_file(link[1])
+            
+        if link[0] == 'NODE':
+            return self.open_node(link[1])
+                        
+        if link[0] == 'HTTP':  
+        	return webbrowser.open('safari-'+link[1])
+        	
+        if link[0] == 'FILE':
+        	return webbrowser.open('sharedfiles://'+link[1])
+        	
     def copy_link_to_current_node(self, sender, include_project=False):
         if not self.current_open_file:
             return None
@@ -720,9 +722,6 @@ class MainView(ui.View):
                 break
         return position
 
-    def hide_keyboard(self,sender):
-        self.end_editing()
-
     def show_timeline(self, sender):
         if self.current_open_file:
             self.save(None)
@@ -730,10 +729,6 @@ class MainView(ui.View):
         timeline = self._UrtextProjectList.current_project.build_timeline(nodes)
         self.tv.text = timeline
         self.current_open_file = None
-        
-    def refresh_project(self, sender):
-        pass
-
 
 class HistoryView(object):
 

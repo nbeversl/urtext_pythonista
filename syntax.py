@@ -43,11 +43,17 @@ colors = {
             { r'[\w\s]+:' : {'self' : blue_bright}  },              
 
             # metadata values
-            { r'(?<=\w:)((?!--\/)[^;\n|])*' : {'self': blue_brighter} }, 
+            { r'(?<=\w:)((?!--\/)[^;\n])*' : {
 
-             # Metadata separators
-             { '\|' : { 'self': unobtrusive } }
-             ]
+                'self': blue_brighter,
+
+                'inside': [
+                  { '|' : { 'self': unobtrusive }  },
+
+                  ]
+                }
+             },
+           ]
         },   
 
     # Node Pointers
