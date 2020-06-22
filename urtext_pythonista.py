@@ -23,12 +23,15 @@ main_view = None
 
 class MainView(ui.View):
 
-    def __init__(self, urtext_project_path, app: AppSingleLaunch):
+    def __init__(self, 
+        urtext_project_path,  
+        app: AppSingleLaunch,
+        import_project=False):
         
         self.app = app
         self.name = "Pythonista Urtext" 
         self.urtext_project_path = urtext_project_path
-        self._UrtextProjectList = ProjectList(urtext_project_path)
+        self._UrtextProjectList = ProjectList(urtext_project_path, import_project=import_project)
         self.current_open_file = None
         self.saved = None
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
@@ -126,7 +129,9 @@ class MainView(ui.View):
         
         self.search_field.delegate = self.title_autocompleter
         
-        self.textfield=ui.TextField(frame=(20,40,300,80))
+        # text field for project name entry
+        self.textfield=ui.TextField(frame=(w*.1,50,w*.8,60))
+        self.textfield.hidden=True
 
         self.tag_dropDown = ui.TableView()
         self.tag_dropDown.hidden = True
@@ -219,24 +224,24 @@ class MainView(ui.View):
 
         buttons = [ 
             open_link_button,
-            search_by_title,    
-            browse_history_button,
+            search_by_title,
+            new_node_button, 
+            insert_tag_button,
             back_button,
             menu_button,
-            switch_project_button,
             save_button,
             home_button,
             delete_word_button,
-            new_node_button,
-            compact_node_button,
-            insert_tag_button,
+            compact_node_button,            
             forward_button,
             timestamp_button,
             manual_timestamp_button,
+            browse_history_button,
             search_button,
             new_inline_node_button,
             copy_link_to_current_node_button,
             copy_link_to_current_node_with_project_button,
+            switch_project_button,
             tag_from_other_button,
             insert_dynamic_def_button,
             insert_id_button,
@@ -387,8 +392,8 @@ class MainView(ui.View):
         on_main_thread(syntax.setAttribs)(self.tv)
 
     def init_new_project(self, sender):
-        new_project_path = sender.text
         self.textfield.hidden=True 
+        new_project_path = sender.text
         path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
         self._UrtextProjectList.init_new_project(path)
 
@@ -409,6 +414,8 @@ class MainView(ui.View):
 
         if sender.selected_row == 0: # Initialize new project
             self.textfield.action=self.init_new_project
+            self.textfield.bring_to_front()
+            self.textfield.hidden=False 
 
         if sender.selected_row == 1:
             self.move_file(None)
@@ -632,6 +639,7 @@ class MainView(ui.View):
         if link and link[0] == 'NODE':
             future = self._UrtextProjectList.current_project.tag_other_node(link[1], '/-- tags: done --/')
             self.executor.submit(self.refresh_open_file_if_modified, future)
+            console.hud_alert('Tagged Done','success',0.5)
 
     def node_list(self, sender):
         if 'zzz' in self._UrtextProjectList.current_project.nodes:
@@ -725,8 +733,7 @@ class MainView(ui.View):
     def show_timeline(self, sender):
         if self.current_open_file:
             self.save(None)
-        nodes = [self._UrtextProjectList.current_project.nodes[node_id] for node_id in self._UrtextProjectList.current_project.nodes]
-        timeline = self._UrtextProjectList.current_project.build_timeline(nodes)
+        timeline = self._UrtextProjectList.current_project.build_timeline()
         self.tv.text = timeline
         self.current_open_file = None
 
@@ -901,9 +908,13 @@ def get_full_line(position, tv):
             return (line, position_in_line)
 
 def launch_urtext_pythonista(args):
-    if not args['path']:
+    if 'path' not in args or not args['path']:
         return None
+
     urtext_project_path = args['path']
+    import_project = False
+    if 'import' in args and args['import'].lower().strip() == 'true':
+        import_project = True
 
     global app
     global main_view
@@ -914,10 +925,10 @@ def launch_urtext_pythonista(args):
     print ('Urtext is loading '+urtext_project_path)
     app = AppSingleLaunch("Pythonisa Urtext")
     if not app.is_active():
-        main_view = MainView(urtext_project_path, app)
+        main_view = MainView(urtext_project_path, app, import_project=import_project)
 
         app.will_present(main_view)
-        if args['first']:
+        if 'first' in args:
             main_view._UrtextProjectList.set_current_project(args['first'])            
         main_view.open_home(None)
         main_view.present('fullscreen', hide_title_bar=True)
