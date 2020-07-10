@@ -57,8 +57,7 @@ class MainView(ui.View):
 		self.tv.background_color = '#282923'
 		self.tv.text_color = 'white'
 
-		viewDelegate = SyntaxHighlighter()
-		self.tv.delegate = viewDelegate
+		
 		
 		self.full_txt_search_field = ui.TextField()
 		self.full_txt_search_field.height = 40
@@ -289,9 +288,11 @@ class MainView(ui.View):
 		# Set up the button row as input accessory
 		self.add_subview(self.tv)
 		self.add_subview(button_line)
-		tvo = ObjCInstance(self.tv)
+		self.tvo = ObjCInstance(self.tv)
 		btn_ln = ObjCInstance(button_line)
-		tvo.setInputAccessoryView_(btn_ln)
+		self.tvo.setInputAccessoryView_(btn_ln)
+		viewDelegate = SyntaxHighlighter(self.tvo)
+		self.tv.delegate = viewDelegate
 
 	def browse_history(self, sender):
 		self.take_snapshot()
@@ -498,19 +499,20 @@ class MainView(ui.View):
 	def refresh_open_file_if_modified(self, future, position=None):
 		modified_files = future.result()
 		if os.path.basename(self.current_open_file) in modified_files:
-			tvo = ObjCInstance(self.tv)
-			selected_range = tvo.selectedRange()
+			selected_range = self.tvo.selectedRange()
 			with open(self.current_open_file,'r', encoding='utf-8') as d:
 				contents=d.read()
 				d.close()
+			self.tvo.scrollEnabled = False
 			self.tv.text=contents
-			on_main_thread(syntax.setAttribs)(self.tv, initial=True)
+			on_main_thread(syntax.setAttribs)(self.tv, self.tvo, initial=True)
 			console.hud_alert('Current file was modified, refreshing','success',1) 
 
-			tvo.scrollRangeToVisible(selected_range) 
+			self.tvo.scrollRangeToVisible(selected_range) 
 			if position:
 				self.tv.selected_range=(position, position)
 			self.tv.begin_editing()
+			self.tvo.scrollEnabled = True
 
 
 	def open_file(self, filename, save_first=True):
@@ -524,7 +526,7 @@ class MainView(ui.View):
 
 		self.tv.text=contents
 		self.current_open_file = file
-		on_main_thread(syntax.setAttribs)(self.tv, initial=True)
+		on_main_thread(syntax.setAttribs)(self.tv, self.tvo, initial=True)
 		self.tv.begin_editing()
 
 
@@ -617,8 +619,7 @@ class MainView(ui.View):
 		self.tv.selected_range = (position, position)
 		
 		if position:
-		  tvo = ObjCInstance(self.tv)
-		  tvo.scrollRangeToVisible(NSRange(position, 1)) 
+		  self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 		
 		# can be set to false if called from a navigation method
 		if add_to_nav:
@@ -744,7 +745,7 @@ class HistoryView(object):
 		state = main_view._UrtextProjectList.current_project.apply_patches(main_view.current_file_history, distance_back=row)
 		main_view.updating_history = True
 		main_view.tv.text = state
-		on_main_thread(syntax.setAttribs)(main_view.tv)
+		on_main_thread(syntax.setAttribs)(main_view.tv, mainview.tvo)
 		main_view.updating_history = False
 
 class AutoCompleter(ui.ListDataSource):
@@ -864,19 +865,20 @@ class FullTextSearchResults(object):
 		while not search.complete:
 			time.sleep(0.1)      
 		main_view.tv.text = '\n'.join(search.result)
-		on_main_thread(syntax.setAttribs)(main_view.tv, initial=True)
+		on_main_thread(syntax.setAttribs)(main_view.tv, mainview.tvo, initial=True)
 		main_view.full_txt_search_field.hidden = True
 
 class SyntaxHighlighter(object):
 
-	def __init__(self):
+	def __init__(self, tvo):
 		self.last_time = time.time()
+		self.tvo = tvo
 
 	def textview_did_change(self, textview):
 		""" Re-run syntax highlighting whenever the text content changes"""  
 		main_view.saved = False
 		file_position = textview.selected_range
-		syntax.setAttribs(textview)
+		syntax.setAttribs(textview, self.tvo)
 		if file_position[1] < len(textview.text):         
 			textview.selected_range = file_position
 	   

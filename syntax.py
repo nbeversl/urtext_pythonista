@@ -136,7 +136,7 @@ def nest_colors(mystro, mystr, offset, colors):
                     nest_colors(mystro, substring, start, nested_item)
 
 @on_main_thread
-def setAttribs(tv, initial=False):
+def setAttribs(tv, tvo, initial=False):
    font = ObjCClass('UIFont').fontWithName_size_('Arial',15)
    mystr = tv.text
    mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
@@ -209,7 +209,6 @@ def setAttribs(tv, initial=False):
             mystro.addAttribute_value_range_('NSBackgroundColor',background,NSRange(start, amount))
 
    if initial or (mystro != original_mystro):
-      tvo=ObjCInstance(tv)
       tvo.setAllowsEditingTextAttributes_(True)
       tvo.setAttributedText_(mystro)     
     
