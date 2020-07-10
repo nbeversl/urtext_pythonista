@@ -26,6 +26,12 @@ colors = {
 
       },
 
+
+    #trailing node ids
+    r'\b[0-9,a-z]{3}(?=}})': {
+      'self': unobtrusive,
+    },
+
     # compact node opener
     r'^[^\S\n]*?\^' : {
        'self':red,
