@@ -16,6 +16,8 @@ from objc_util import *
 import syntax
 import platform
 import clipboard
+import queue
+import inspect
 
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 app = None
@@ -35,7 +37,9 @@ class MainView(ui.View):
 		self.current_open_file = None
 		self.saved = None
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+		self.callback_queue = queue.Queue()
 		self.updating_history = False
+		self.refreshing = False
 		"""
 		Build view components. 
 		"""
@@ -57,7 +61,6 @@ class MainView(ui.View):
 		self.tv.background_color = '#282923'
 		self.tv.text_color = 'white'
 
-		
 		
 		self.full_txt_search_field = ui.TextField()
 		self.full_txt_search_field.height = 40
@@ -230,7 +233,6 @@ class MainView(ui.View):
 			menu_button,
 			save_button,
 			home_button,
-			#delete_word_button,
 			compact_node_button,            
 			forward_button,
 			timestamp_button,
@@ -293,6 +295,9 @@ class MainView(ui.View):
 		self.tvo.setInputAccessoryView_(btn_ln)
 		viewDelegate = SyntaxHighlighter(self.tvo)
 		self.tv.delegate = viewDelegate
+		
+	def touch_began(self, touch):
+		self.tv.scroll_enabled = True
 
 	def browse_history(self, sender):
 		self.take_snapshot()
@@ -378,19 +383,6 @@ class MainView(ui.View):
 		self.open_home(None)
 		
 		console.hud_alert('Project List Reloaded' ,'success',1)
-
-	def delete_word(self, sender):
-		contents = self.tv.text 
-		position = self.tv.selected_range[0] 
-		if position == 0:
-			return
-		distance_back = 1
-		selection = contents[position - distance_back:position]
-		while len(selection) and selection[0] != ' ' and position - distance_back > 0 :
-			distance_back += 1
-			selection = contents[position-distance_back:position]
-		self.tv.replace_range( (position-distance_back, position),'')
-		on_main_thread(syntax.setAttribs)(self.tv)
 
 	def init_new_project(self, sender):
 		self.textfield.hidden=True 
@@ -483,7 +475,6 @@ class MainView(ui.View):
 	def save(self, sender):
 
 		contents = self.tv.text 
-
 		if self.current_open_file:
 
 			with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file),'w', encoding='utf-8') as d:
@@ -492,29 +483,33 @@ class MainView(ui.View):
 			print('saved '+self.current_open_file)
 			future = self._UrtextProjectList.current_project.on_modified(self.current_open_file)
 			if future:
-				self.executor.submit(self.refresh_open_file_if_modified, future)
+				self.executor.submit(self.refresh_open_file_if_modified,future)
 
 			self.saved = True
 
 	def refresh_open_file_if_modified(self, future, position=None):
+		# curframe = inspect.currentframe()
+		# calframe = inspect.getouterframes(curframe, 2)
+		# print('caller name:', calframe[1][3])
 		modified_files = future.result()
 		if os.path.basename(self.current_open_file) in modified_files:
-			selected_range = self.tvo.selectedRange()
 			with open(self.current_open_file,'r', encoding='utf-8') as d:
 				contents=d.read()
-				d.close()
-			self.tvo.scrollEnabled = False
-			self.tv.text=contents
-			on_main_thread(syntax.setAttribs)(self.tv, self.tvo, initial=True)
-			console.hud_alert('Current file was modified, refreshing','success',1) 
+			#self.temp_contents = contents
+			self.tv.scroll_enabled = False
+			#self.tv.text = contents 
+			#self.refreshing = True
 
-			self.tvo.scrollRangeToVisible(selected_range) 
-			if position:
-				self.tv.selected_range=(position, position)
-			self.tv.begin_editing()
-			self.tvo.scrollEnabled = True
+			self.refresh_file(text=contents)
+			#yconsole.hud_alert('Current file was modified, refreshing','success',1)
+			#self.refreshing = False
+			time.sleep(1)
+			self.tv.scroll_enabled = True
 
-
+	@on_main_thread
+	def refresh_file(self, text=''):		
+		syntax.setAttribs(self.tv, self.tvo, text=text)		
+	
 	def open_file(self, filename, save_first=True):
 
 		if save_first and self.current_open_file:
@@ -593,8 +588,7 @@ class MainView(ui.View):
 		new_inline_node_contents, node_id = self._UrtextProjectList.current_project.add_inline_node(
 				date=datetime.datetime.now(),
 				trailing_id=True,
-				contents=contents,
-				metadata=metadata)
+				contents=contents)
 		self.tv.replace_range(selection, new_inline_node_contents)
 		if locate_inside:
 			self.tv.selected_range = (selection[0]+3, selection[0]+3)
@@ -865,7 +859,7 @@ class FullTextSearchResults(object):
 		while not search.complete:
 			time.sleep(0.1)      
 		main_view.tv.text = '\n'.join(search.result)
-		on_main_thread(syntax.setAttribs)(main_view.tv, mainview.tvo, initial=True)
+		main_view.refresh_file()
 		main_view.full_txt_search_field.hidden = True
 
 class SyntaxHighlighter(object):
@@ -876,16 +870,20 @@ class SyntaxHighlighter(object):
 
 	def textview_did_change(self, textview):
 		""" Re-run syntax highlighting whenever the text content changes"""  
+		
+		
 		main_view.saved = False
-		file_position = textview.selected_range
-		syntax.setAttribs(textview, self.tvo)
+		file_position = textview.selected_range	
 		if file_position[1] < len(textview.text):         
-			textview.selected_range = file_position
-	   
-		destination_node = main_view._UrtextProjectList.is_in_export(main_view.current_open_file, file_position[0])
+			textview.selected_range = file_position		
+		main_view.refresh_file()   
+		#main_view.tv.scroll_enabled=True
+		"""destination_node = main_view._UrtextProjectList.is_in_export(main_view.current_open_file, file_position[0])
 		if destination_node:
 			# TODO: undo the manual change made to the view
-			main_view.open_node(destination_node[0], position=destination_node[1])
+			main_view.open_node(destination_node[0], position=destination_node[1])"""
+		if file_position[1] < len(textview.text):         
+		 	textview.selected_range = file_position
 
 		now = time.time()
 		if now - self.last_time < 10:
@@ -895,6 +893,9 @@ class SyntaxHighlighter(object):
 
 	def textview_did_change_selection(self, textview):
 		""" Hide all popups which clicking in the text editor """
+		
+		pass
+		
 		main_view.project_selector.hidden = True
 		main_view.menu_list.hidden = True
 		if not main_view.updating_history:
@@ -938,10 +939,11 @@ def launch_urtext_pythonista(args):
 
 		# remnant from the watchdog, currently keeps global variables from being cleared.
 		# see this thread for other solutions: https://forum.omz-software.com/topic/5440/prevent-duplicate-launch-from-shortcut/8
-		while True:
+		"""while True:
+	
 			time.sleep(1)
 			if console.is_in_background() and not main_view.saved:
 				print('Focus Lost. Saving current file '+main_view.current_open_file)
 				print(datetime.datetime.now())
-				main_view.save(None) 
+				main_view.save(None)"""
 

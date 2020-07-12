@@ -1,5 +1,6 @@
 from objc_util import *
 import re
+import time
 
 unobtrusive = UIColor.colorWithRed(0.25, green=0.25, blue=0.25, alpha=1.0)
 green = UIColor.colorWithRed(0.44, green=0.84, blue=0.42, alpha=1.0)
@@ -116,7 +117,6 @@ def find_wrappers(string):
          found_wrappers[item.start()] = wrapper
    return found_wrappers
 
-
 def nest_colors(mystro, mystr, offset, colors):
    # go through each thing i want to highlight, and addAttribute to that range
    for pattern in colors:
@@ -136,9 +136,14 @@ def nest_colors(mystro, mystr, offset, colors):
                     nest_colors(mystro, substring, start, nested_item)
 
 @on_main_thread
-def setAttribs(tv, tvo, initial=False):
+def setAttribs(tv, tvo, text='', initial=False):
+
    font = ObjCClass('UIFont').fontWithName_size_('Arial',15)
+   file_position = tv.selected_range
+   if text:
+    tv.text = text 	      
    mystr = tv.text
+   
    mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
    original_mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
    mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')),font,NSRange(0,len(mystr)))
@@ -207,8 +212,21 @@ def setAttribs(tv, tvo, initial=False):
             amount = len(mystr) - start
             background = UIColor.colorWithRed(value, green=value, blue=value, alpha=1.0)
             mystro.addAttribute_value_range_('NSBackgroundColor',background,NSRange(start, amount))
+   
 
    if initial or (mystro != original_mystro):
+      #tv.scroll_enabled = False
+
       tvo.setAllowsEditingTextAttributes_(True)
-      tvo.setAttributedText_(mystro)     
-    
+      tvo.setAttributedText_(mystro)
+      #time.sleep(1)
+      #tv.scroll_enabled =True
+      
+   print(file_position)
+   print(len(tv.text))
+   if file_position[1] < len(tv.text):         
+      tv.selected_range = file_position
+
+
+
+
