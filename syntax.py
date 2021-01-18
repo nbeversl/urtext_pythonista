@@ -1,25 +1,48 @@
 from objc_util import *
 import re
-import time
 
-unobtrusive = UIColor.colorWithRed(0.25, green=0.25, blue=0.25, alpha=1.0)
 green = UIColor.colorWithRed(0.44, green=0.84, blue=0.42, alpha=1.0)
-bright_yellow = UIColor.colorWithRed(1.0, green=1.0, blue=0.5, alpha=1.0)
-blue_bright = UIColor.colorWithRed(0.08, green=0.24, blue=0.72, alpha=1.0)
 blue_brighter = UIColor.colorWithRed(0.28, green=0.44, blue=0.92, alpha=1.0)
-red = UIColor.colorWithRed(1, green=0.44, blue=0.92, alpha=1.0)
+paper =  UIColor.colorWithRed(0.898, green=0.8667, blue=0.8627, alpha=1.0)
+grey5 =  UIColor.colorWithRed(0.3294, green=0.3294, blue=0.3294, alpha=1.0)
+grey6 =   UIColor.colorWithRed(0.4, green=0.4, blue=0.4, alpha=1.0)
+unobtrusive = UIColor.colorWithRed(0.8392, green=0.8118, blue=0.7961, alpha=1.0)
+grey = UIColor.colorWithRed(0.7176, green=0.7176, blue=0.7176, alpha=1.0)
+white2 = UIColor.colorWithRed(0, green=0, blue=.97, alpha=1.0)
+red = UIColor.colorWithRed(0.498, green=0, blue=0, alpha=1.0)
 
+# wrappers
+blue_lighter = UIColor.colorWithRed(0.5098, green=0.6, blue=0.8471, alpha=1.0)
+aqua_green2 = UIColor.colorWithRed(0.6157, green=0.7686, blue=0.7176, alpha=1.0)
+lime2 = UIColor.colorWithRed(0.2745, green=0.4588, blue=0.4078, alpha=1.0)
+bright_green2 = UIColor.colorWithRed(0.451, green=0.698, blue=0.4196, alpha=1.0)
+deep_blue2 = UIColor.colorWithRed(0.7647, green=0.5098, blue=0.8471, alpha=1.0)
+
+wrapper_colors = [
+    blue_lighter,
+    aqua_green2,
+    lime2,
+    bright_green2,
+    deep_blue2
+]
+
+dynamic_definition_wrappers = grey6
+function_name = grey
+font_name = 'Fira Code'
+font_size = 12
+bold = 'FiraCode-Bold'
+font = ObjCClass('UIFont').fontWithName_size_(font_name, font_size)
 
 colors = {
 
     # dynamic definition 
     r'\[\[.*?\]\]': {                                                     
-        'self': bright_yellow,       
+        'self': dynamic_definition_wrappers,       
         'inside' : [ 
-          { r'(INCLUDE|METADATA|ID|TREE|SHOW|TIMELINE|EXCLUDE|FORMAT|SEARCH|LIMIT|SORT|EXPORT|FILE|TAG_ALL)(?=\(.*?\))' : { 'self':green },
+          { r'(\+|-|INCLUDE|ID|HEADER|FOOTER|SHOW|DEPTH|COLLECT|EXCLUDE|EXPORT|LIMIT|SORT)(?=\(.*?\))' : { 'self':function_name },
             r'([\w]+)(?=\:)': { 'self':red },       # keys
             r'(?<=\:)([\w]+)' : { 'self' : unobtrusive }, # values, single-word
-            r'\b(reverse|preformat|all|meta|inline|indexed|and|or|multiline_meta|indent|timestamp|markdown|html|plaintext|source|recursive)\b' :
+            r'\b(-r|-t|reverse|preformat|multiline_meta|indent|timestamp|markdown|html|plaintext|source|recursive)\b' :
                   { 'self' : red },   # keywords
             r'([\w]+)\:("[\w\s]+")' : { 'self' : red}, # value strings (quotations)
             } 
@@ -27,9 +50,8 @@ colors = {
 
       },
 
-
     #trailing node ids
-    r'\b[0-9,a-z]{3}(?=}})': {
+    r'\b[0-9,a-z]{3}(?=})': {
       'self': unobtrusive,
     },
 
@@ -39,33 +61,27 @@ colors = {
        'flags':re.MULTILINE,
     },
 
-    # metadata wrappers
-    r'(\/--(?:(?!\/--).)*?--\/)': {                                 
+    # metadata ::
+    r'::' : {
+        'self':UIColor.grayColor()
+    },
 
-        'self':UIColor.grayColor(),
-
-        'inside': [ 
-
-             # metadata keys
-            { r'[\w\s]+:' : {'self' : blue_bright}  },              
-
-            # metadata values
-            { r'(?<=\w:)((?!--\/)[^;\n])*' : {
-
-                'self': blue_brighter,
-
-                'inside': [
-                  { '|' : { 'self': unobtrusive }  },
-
-                  ]
-                }
-             },
-           ]
-        },   
+    # metadata key
+    r'\w+?(?=::)' : {
+        'self' : 'bold',
+    },
+    
+    # metadata value 
+    r'(?<=::)[^\n};]+;?' : {
+       'self': blue_brighter ,
+      'inside': [
+          { '|' : { 'self': unobtrusive }  },
+        ]
+    },
 
     # Node Pointers
     r'>>[0-9,a-z]{3}\b':{
-        'self':UIColor.purpleColor()
+        'self':grey5
         },
 
     # timestamps
@@ -74,13 +90,11 @@ colors = {
         },                             
 
     # Project Links
-    r'/{\"(.*?)\"}>([0-9,a-z]{3})\b/':{
-
-        'self':UIColor.colorWithRed(0.98, green=0.92, blue=0.36, alpha=1.0) },
+    r'/=>\"(.*?)\"(>[0-9,a-z]{3})\b/':{ 'self':red },
     
     # link prefix (>)
     r'>(?=([0-9,a-z]{3}))':{ 
-        'self':green
+        'self':grey5
         },               
     
     # nodeIDs in links
@@ -90,35 +104,26 @@ colors = {
    
     #link titles
     r'\|[^<][^\s].*?(?=>{1,2}[0-9,a-z]{3}\b[^\n]*?)': {  
-        'self':bright_yellow,
+        'self':grey5,
         'flags': 0
         },  
+        
+    #node titles
 
-    # other project link (change to bold, or something)
-    r'\{\"(.*?)\"\}' : {
-        'self':bright_yellow,
-    }
 }
 
-wrappers = [ 
-  r'\{\{',
-  r'\}\}',
-  r'^[^\S\n]*?\^', # compact node opener
-  r'\n',
-  ]
 
-wrapper_color = unobtrusive
+wrappers = re.compile(r'(\{|\}|^[^\S\n]*?\^|\n)')
 
 def find_wrappers(string):
    found_wrappers = {}
-   for wrapper in wrappers:
-      found = re.finditer(wrapper,string, flags=re.MULTILINE)
-      for item in found:
-         found_wrappers[item.start()] = wrapper
+   s = re.finditer( r'(\{|\}|^[^\S\n]*?\^|\n)', string, flags=re.MULTILINE)
+   for item in s:
+     found_wrappers[item.start()] = item.group()
    return found_wrappers
 
 def nest_colors(mystro, mystr, offset, colors):
-   # go through each thing i want to highlight, and addAttribute to that range
+ 
    for pattern in colors:
         flags = re.DOTALL
         if 'flags' in colors[pattern]:
@@ -128,7 +133,17 @@ def nest_colors(mystro, mystr, offset, colors):
         for m in sre:
             start, end = m.span()
             length = end-start
-            mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),color,NSRange(start+offset,length))            
+            if color == 'bold':   
+              mystro.addAttribute_value_range_(
+                ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), 
+                ObjCClass('UIFont').fontWithName_size_(bold, font_size), 
+                NSRange(start+offset,length))
+            else:
+              mystro.addAttribute_value_range_(
+                ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
+                color,
+                NSRange(start+offset,length)
+              )            
             
             if 'inside' in colors[pattern]:
                 substring = mystr[start:end]
@@ -136,24 +151,18 @@ def nest_colors(mystro, mystr, offset, colors):
                     nest_colors(mystro, substring, start, nested_item)
 
 @on_main_thread
-def setAttribs(tv, tvo, text='', initial=False):
+def setAttribs(tv, tvo, initial=False):
 
-   font = ObjCClass('UIFont').fontWithName_size_('Arial',15)
    file_position = tv.selected_range
-   if text:
-    tv.text = text 	      
    mystr = tv.text
-   
    mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
-   original_mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
+   original_mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)  
    mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')),font,NSRange(0,len(mystr)))
-   mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),UIColor.whiteColor(),NSRange(0,len(mystr)))
-   nest_colors(mystro, mystr, 0, colors)
-   value = 0.16
-   # matching sublime:
-   # [UIColor colorWithRed:0.16 green:0.16 blue:0.14 alpha:1.0];
-   background = UIColor.colorWithRed(value, green=value, blue=value, alpha=1.0)
-   mystro.addAttribute_value_range_('NSBackgroundColor',background,NSRange(0,len(mystr)))
+   mystro.addAttribute_value_range_(
+        ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')), 
+        grey5, 
+        NSRange(0,len(mystr)))
+   nested_level = 0
 
    wrappers = find_wrappers(mystr)
    
@@ -163,70 +172,39 @@ def setAttribs(tv, tvo, text='', initial=False):
     for index in range(len(positions)):
         position = positions[index]
 
-        if wrappers[position] == '\\n':
+        if wrappers[position] == '\n':
             compact_node_open = False
             continue
 
-        if wrappers[position] == '\\{\\{' :
-            value += 0.025
-            starting_offset = 0
-            amount_offset = 2
-            mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),wrapper_color,NSRange(position,2))
+        if wrappers[position] == '{' :
+            nested_level += 1 
+            if nested_level < len(wrappers):
+	            mystro.addAttribute_value_range_(
+	              ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
+	              wrapper_colors[nested_level],
+	              NSRange(position,1))
         
-        if wrappers[position] == '^[^\\S\\n]*?\\^':        
-            value += 0.025
-            starting_offset = 0
-            amount_offset = 0
+        if wrappers[position] == '^[^\S\n]*?\\^':        
+            nested_level += 1
             compact_node_open = True
 
-        if wrappers[position] == '\\}\\}' :
-            value -= 0.025
-            starting_offset = 2
-            amount_offset = 0
-            mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),wrapper_color,NSRange(position,2))
+        if wrappers[position] == '}' :           
+            if nested_level < len(wrappers):
+	            mystro.addAttribute_value_range_(
+	              ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
+	              wrapper_colors[nested_level], #grey5, #
+	              NSRange(position,1))
+            nested_level -= 1
 
         # If this is not the last closing wrapper:
         if position < positions[-1]:
-
-            # set the starting position
-            start = position + starting_offset
-
-            # calculate the ending position from the next symbol back to this one
-
-            # get position
-            next_index = index + 1
-            if not compact_node_open:
-              while wrappers[positions[next_index]] == '\\n' and next_index < len(positions) - 1:
-                next_index += 1;
-            
-            amount = positions[next_index] - start + amount_offset
-
-            background = UIColor.colorWithRed(value, green=value, blue=value, alpha=1.0)
-            mystro.addAttribute_value_range_('NSBackgroundColor', background,NSRange(start,amount))
             if compact_node_open:
               compact_node_open = False
-              value -= 0.025
+              nested_level -=1
 
-        else:
-            start = position + 2
-            amount = len(mystr) - start
-            background = UIColor.colorWithRed(value, green=value, blue=value, alpha=1.0)
-            mystro.addAttribute_value_range_('NSBackgroundColor',background,NSRange(start, amount))
-   
-
+   nest_colors(mystro, mystr, 0, colors)
    if initial or (mystro != original_mystro):
-      #tv.scroll_enabled = False
-
       tvo.setAllowsEditingTextAttributes_(True)
       tvo.setAttributedText_(mystro)
-      #time.sleep(1)
-      #tv.scroll_enabled =True
-      
-   print(file_position)
-   print(len(tv.text))
-   if file_position[1] < len(tv.text):         
-      tv.selected_range = file_position
-
-
 
 
