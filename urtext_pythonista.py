@@ -294,7 +294,6 @@ class MainView(ui.View):
 		self.current_file_history = self._UrtextProjectList.current_project.get_history(self.current_open_file)
 		if not self.current_file_history:
 			return None
-		print(self.current_file_history)
 		ts_format = self._UrtextProjectList.current_project.settings['timestamp_format']
 		string_timestamps = [
 			datetime.datetime.fromtimestamp(
@@ -738,7 +737,8 @@ class MainView(ui.View):
 
 	def search_keywords(self, sender):
 		self.keyword_autocompleter.hidden = False
-		self.show_search_and_dropdown(self.keywords_search, self.keyword_dropDown)
+		self.keyword_autocompleter.action = self.keyword_autocompleter.optionWasSelected     
+		self.show_search_and_dropdown(self.keyword_search, self.keyword_dropDown)
 
 class HistoryView(object):
 
@@ -753,7 +753,9 @@ class TitleAutoCompleter(ui.ListDataSource):
 	""" Used for searching Nodes and doing operations on the selected """
 
 	def textfield_did_change(self, textfield):
-		
+
+		main_view.title_dropDown.hidden = False
+		main_view.title_dropDown.bring_to_front()
 		entry = textfield.text.lower()
 		self.titles = main_view._UrtextProjectList.current_project.titles()
 		self.titles_keys = main_view._UrtextProjectList.current_project.titles().keys()
@@ -822,7 +824,7 @@ class MetaAutoCompleter(ui.ListDataSource):
 	def textfield_did_change(self, textfield):
 		
 		main_view.meta_dropDown.hidden = False
-		main_view.meta_search.hidden = False
+		main_view.meta_dropDown.bring_to_front()
 
 		entry = textfield.text.lower()
 		self.meta_pairs = main_view._UrtextProjectList.get_all_meta_pairs()
@@ -835,7 +837,7 @@ class MetaAutoCompleter(ui.ListDataSource):
 		self.items = options
 
 		# size the dropdown for up to five options
-		#main_view.meta_dropDown.height = min(main_view.meta_dropDown.row_height * len(options), 5*main_view.meta_dropDown.row_height)
+		main_view.meta_dropDown.height = min(main_view.meta_dropDown.row_height * len(options), 5*main_view.meta_dropDown.row_height)
 
 	def textfield_did_end_editing(self, textfield):
 		
@@ -854,7 +856,6 @@ class MetaAutoCompleter(ui.ListDataSource):
 		main_view.tv.begin_editing()
 
 
-
 class KeywordAutoCompleter(ui.ListDataSource):
 	
 	def textfield_did_change(self, textfield):
@@ -862,30 +863,29 @@ class KeywordAutoCompleter(ui.ListDataSource):
 		main_view.keyword_dropDown.hidden = False
 		main_view.keyword_dropDown.bring_to_front()
 		
-		# an arbitrary list of autocomplete options
-		length = len(textfield.text)
 		entry = textfield.text.lower()
 
-		self.items = main_view._UrtextProjectList.current_project.keywords
-	
-		# # setting the items property automatically updates the list
-		self.items = options
+		self.items = main_view._UrtextProjectList.current_project.keywords.keys()
 
 		# size the dropdown for up to five options
-		main_view.keyword_autocompleter.height = min(main_view.keyword_autocompleter.row_height * len(options), 5*main_view.keyword_autocompleter.row_height)
+		main_view.keyword_dropDown.height = min(main_view.keyword_dropDown.row_height * len(self.items), 5*main_view.keyword_dropDown.row_height)
 
 	def textfield_did_end_editing(self, textfield):
 				
-		main_view.keyword_autocompleter.hidden = True
-		main_view.keyword_autocompleter.hidden.text=''
+		main_view.keyword_dropDown.hidden = True
+		main_view.keyword_dropDown.hidden.text=''
 		self.items = []
 		
 	def optionWasSelected(self, sender):
-		main_view.keyword_autocompleter.text = main_view._UrtextProjectList.current_project.keywords[self.selected_row]       
-		print(  main_view._UrtextProjectList.current_project.keywords[self.selected_row])
-		main_view.keyword_search.end_editing()
-		main_view.tv.begin_editing()
-
+		keyword_selected = self.items[self.selected_row]
+		main_view.keyword_search.text = keyword_selected       
+		if len(main_view._UrtextProjectList.current_project.keywords[keyword_selected]) == 1:
+			main_view.keyword_search.end_editing()
+			main_view.tv.begin_editing()	
+			return main_view.open_node(main_view._UrtextProjectList.current_project.keywords[keyword_selected][0])
+		else:
+			main_view.title_autocompleter.action = self.title_autocompleter.open_node
+			main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
 
 class SyntaxHighlighter(object):
 
