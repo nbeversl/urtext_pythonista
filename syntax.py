@@ -50,10 +50,11 @@ colors = {
 
       },
 
-    #trailing node ids
-    r'\b[0-9,a-z]{3}(?=})': {
+    # node ids
+    r'(^|\s)@[0-9,a-z]{3}\b': {
       'self': unobtrusive,
     },
+
 
     # compact node opener
     r'^[^\S\n]*?\^' : {
@@ -72,7 +73,7 @@ colors = {
     },
     
     # metadata value 
-    r'(?<=::)[^\n};]+;?' : {
+    r'(?<=::)[^\n};@]+;?' : {
        'self': blue_brighter ,
       'inside': [
           { '|' : { 'self': unobtrusive }  },
@@ -109,6 +110,10 @@ colors = {
         },  
         
     #node titles
+     r'(?<={)([^_]*?(?= _))|(^[^_{]*?(?= _))':{ 
+        'self':'bold',
+        }, 
+
 
 }
 
