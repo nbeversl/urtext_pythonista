@@ -668,6 +668,7 @@ class MainView(ui.View):
 		self.show_search_and_dropdown(self.meta_search, self.meta_dropDown)
 
 	def search_node_title(self, sender):
+		self.title_autocompleter.titles = self._UrtextProjectList.current_project.titles()
 		self.title_autocompleter.action = self.title_autocompleter.open_node
 		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
 
@@ -757,8 +758,8 @@ class TitleAutoCompleter(ui.ListDataSource):
 		main_view.title_dropDown.hidden = False
 		main_view.title_dropDown.bring_to_front()
 		entry = textfield.text.lower()
-		self.titles = main_view._UrtextProjectList.current_project.titles()
-		self.titles_keys = main_view._UrtextProjectList.current_project.titles().keys()
+
+		self.titles_keys = self.titles.keys()
 
 		options = sorted(
 			self.titles_keys, 
@@ -865,7 +866,13 @@ class KeywordAutoCompleter(ui.ListDataSource):
 		
 		entry = textfield.text.lower()
 
-		self.items = main_view._UrtextProjectList.current_project.keywords.keys()
+		options = main_view._UrtextProjectList.current_project.keywords.keys()
+
+		# speed this up?
+		self.items = sorted(
+			options, 
+			key=lambda pair: fuzz.ratio(entry, pair), 
+			reverse=True)
 
 		# size the dropdown for up to five options
 		main_view.keyword_dropDown.height = min(main_view.keyword_dropDown.row_height * len(self.items), 5*main_view.keyword_dropDown.row_height)
@@ -873,19 +880,23 @@ class KeywordAutoCompleter(ui.ListDataSource):
 	def textfield_did_end_editing(self, textfield):
 				
 		main_view.keyword_dropDown.hidden = True
-		main_view.keyword_dropDown.hidden.text=''
+		main_view.keyword_search.text= ''
+		main_view.keyword_search.hidden = True
 		self.items = []
 		
 	def optionWasSelected(self, sender):
 		keyword_selected = self.items[self.selected_row]
 		main_view.keyword_search.text = keyword_selected       
+		main_view.keyword_search.end_editing()
 		if len(main_view._UrtextProjectList.current_project.keywords[keyword_selected]) == 1:
-			main_view.keyword_search.end_editing()
 			main_view.tv.begin_editing()	
 			return main_view.open_node(main_view._UrtextProjectList.current_project.keywords[keyword_selected][0])
 		else:
-			main_view.title_autocompleter.action = self.title_autocompleter.open_node
-			main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
+			titles = {}
+			for t in main_view._UrtextProjectList.current_project.keywords[keyword_selected]:
+				titles[main_view._UrtextProjectList.current_project.nodes[t].title] = (main_view._UrtextProjectList.current_project.title, t) 
+				main_view.title_autocompleter.titles = titles
+			return main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
 
 class SyntaxHighlighter(object):
 
