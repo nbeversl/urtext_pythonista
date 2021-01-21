@@ -57,7 +57,7 @@ colors = {
 
 
     # compact node opener
-    r'^[^\S\n]*?\^' : {
+    r'^[^\S\n]*?•' : {
        'self':red,
        'flags':re.MULTILINE,
     },
