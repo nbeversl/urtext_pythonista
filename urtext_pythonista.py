@@ -70,9 +70,9 @@ class MainView(ui.View):
 		self.title_dropDown.delegate = self.title_autocompleter
 		self.title_dropDown.data_source = self.title_autocompleter		
 		self.title_search = ui.TextField()
+		self.title_search.hidden = True
 		self.title_search.delegate = self.title_autocompleter
-		self.add_subview(self.title_dropDown)
-		self.add_subview(self.title_search)
+		
 		self.size_field(self.title_search)
 
 		# Metadata autocompleter
@@ -83,8 +83,8 @@ class MainView(ui.View):
 		self.meta_dropDown.data_source = self.meta_autocompleter	
 		self.meta_search = ui.TextField()
 		self.meta_search.delegate = self.title_autocompleter
-		self.add_subview(self.meta_dropDown)
-		self.add_subview(self.meta_search)
+		self.meta_search.hidden = True
+		
 		self.size_field(self.meta_search)
 		
 		# UI List of projects
@@ -92,7 +92,7 @@ class MainView(ui.View):
 		self.textfield.hidden=True
 		self.project_list = ui.ListDataSource(items=[]) 
 		self.project_selector = ui.TableView()
-		self.project_selector.hidden = False 
+		self.project_selector.hidden = True
 		self.project_selector.delegate = self.project_list
 		self.project_selector.data_source = self.project_list
 
@@ -104,8 +104,7 @@ class MainView(ui.View):
 		self.keyword_dropDown.data_source = self.keyword_autocompleter	
 		self.keyword_search = ui.TextField()
 		self.keyword_search.delegate = self.keyword_autocompleter
-		self.add_subview(self.keyword_dropDown)
-		self.add_subview(self.keyword_search)
+		self.keyword_search.hidden = True
 		self.size_field(self.keyword_search)
 
 		# History:
@@ -116,6 +115,7 @@ class MainView(ui.View):
 		history_viewer = HistoryView()
 		self.history_view.delegate = history_viewer
 		self.history_view.data_source = self.history_stamps
+
 
 		# Pop Up Urtext Features Menu
 		menu_options = ui.ListDataSource(items=[
@@ -276,7 +276,14 @@ class MainView(ui.View):
 			button.border_width=1
 
 		# Set up the button row as input accessory
+
 		self.add_subview(self.tv)
+		self.add_subview(self.meta_dropDown)
+		self.add_subview(self.meta_search)
+		self.add_subview(self.keyword_dropDown)
+		self.add_subview(self.keyword_search)
+		self.add_subview(self.title_dropDown)
+		self.add_subview(self.title_search)
 		self.add_subview(button_line)
 		self.add_subview(self.menu_list)
 		self.add_subview(self.history_view)
@@ -668,7 +675,7 @@ class MainView(ui.View):
 		self.show_search_and_dropdown(self.meta_search, self.meta_dropDown)
 
 	def search_node_title(self, sender):
-		self.title_autocompleter.titles = self._UrtextProjectList.current_project.titles()
+		
 		self.title_autocompleter.action = self.title_autocompleter.open_node
 		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
 
@@ -758,7 +765,7 @@ class TitleAutoCompleter(ui.ListDataSource):
 		main_view.title_dropDown.hidden = False
 		main_view.title_dropDown.bring_to_front()
 		entry = textfield.text.lower()
-
+		self.titles = main_view._UrtextProjectList.current_project.titles()
 		self.titles_keys = self.titles.keys()
 
 		options = sorted(
@@ -818,6 +825,28 @@ class TitleAutoCompleter(ui.ListDataSource):
 			pointer=True) 
 		main_view.tv.replace_range(main_view.tv.selected_range, link)
 		main_view.title_search.end_editing()
+
+class SelectedNodesAutoCompleted(TitleAutoCompleter):
+
+	def __init__(self, titles):
+		self.titles = titles
+
+	def textfield_did_change(self, textfield):
+
+		main_view.title_dropDown.hidden = False
+		main_view.title_dropDown.bring_to_front()
+		entry = textfield.text.lower()
+		self.titles_keys = self.titles.keys()
+
+		options = sorted(
+			self.titles_keys, 
+			key=lambda pair: fuzz.ratio(entry, pair), 
+			reverse=True)
+
+		self.items = options
+
+		main_view.title_dropDown.height = min(main_view.title_dropDown.row_height * len(options), 5*main_view.title_dropDown.row_height)
+
 
 class MetaAutoCompleter(ui.ListDataSource):
 	""" Used for searching project meta key/value pairs """
@@ -895,7 +924,7 @@ class KeywordAutoCompleter(ui.ListDataSource):
 			titles = {}
 			for t in main_view._UrtextProjectList.current_project.keywords[keyword_selected]:
 				titles[main_view._UrtextProjectList.current_project.nodes[t].title] = (main_view._UrtextProjectList.current_project.title, t) 
-				main_view.title_autocompleter.titles = titles
+			main_view.title_autocompleter.titles = titles
 			return main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
 
 class SyntaxHighlighter(object):
@@ -926,6 +955,8 @@ class SyntaxHighlighter(object):
 		
 	 	main_view.project_selector.hidden = True
 	 	main_view.menu_list.hidden = True
+	 	main_view.keyword_dropDown.hidden = True
+	 	main_view.keyword_search.hidden = True
 	 	if not main_view.updating_history:
 	 		main_view.history_view.hidden = True
 
