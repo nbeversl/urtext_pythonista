@@ -512,7 +512,8 @@ class MainView(ui.View):
 		self.tv.scroll_enabled= False     
 		syntax.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
-
+		self.tv.selected_range = position
+		
 	def open_file(self, filename, save_first=True):
 		"""
 		Receives a basename.
@@ -825,28 +826,6 @@ class TitleAutoCompleter(ui.ListDataSource):
 			pointer=True) 
 		main_view.tv.replace_range(main_view.tv.selected_range, link)
 		main_view.title_search.end_editing()
-
-class SelectedNodesAutoCompleted(TitleAutoCompleter):
-
-	def __init__(self, titles):
-		self.titles = titles
-
-	def textfield_did_change(self, textfield):
-
-		main_view.title_dropDown.hidden = False
-		main_view.title_dropDown.bring_to_front()
-		entry = textfield.text.lower()
-		self.titles_keys = self.titles.keys()
-
-		options = sorted(
-			self.titles_keys, 
-			key=lambda pair: fuzz.ratio(entry, pair), 
-			reverse=True)
-
-		self.items = options
-
-		main_view.title_dropDown.height = min(main_view.title_dropDown.row_height * len(options), 5*main_view.title_dropDown.row_height)
-
 
 class MetaAutoCompleter(ui.ListDataSource):
 	""" Used for searching project meta key/value pairs """
