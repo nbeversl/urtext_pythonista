@@ -513,7 +513,7 @@ class MainView(ui.View):
 		syntax.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
 		self.tv.selected_range = position
-		
+
 	def open_file(self, filename, save_first=True):
 		"""
 		Receives a basename.
@@ -676,7 +676,7 @@ class MainView(ui.View):
 		self.show_search_and_dropdown(self.meta_search, self.meta_dropDown)
 
 	def search_node_title(self, sender):
-		
+		self.title_autocompleter.titles = self._UrtextProjectList.current_project.titles()
 		self.title_autocompleter.action = self.title_autocompleter.open_node
 		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
 
@@ -766,7 +766,6 @@ class TitleAutoCompleter(ui.ListDataSource):
 		main_view.title_dropDown.hidden = False
 		main_view.title_dropDown.bring_to_front()
 		entry = textfield.text.lower()
-		self.titles = main_view._UrtextProjectList.current_project.titles()
 		self.titles_keys = self.titles.keys()
 
 		options = sorted(
@@ -897,14 +896,18 @@ class KeywordAutoCompleter(ui.ListDataSource):
 		main_view.keyword_search.text = keyword_selected       
 		main_view.keyword_search.end_editing()
 		if len(main_view._UrtextProjectList.current_project.keywords[keyword_selected]) == 1:
-			main_view.tv.begin_editing()	
+			main_view.tv.begin_editing()
 			return main_view.open_node(main_view._UrtextProjectList.current_project.keywords[keyword_selected][0])
 		else:
+			print('MAKING TITLES')
 			titles = {}
 			for t in main_view._UrtextProjectList.current_project.keywords[keyword_selected]:
+				print(t)
 				titles[main_view._UrtextProjectList.current_project.nodes[t].title] = (main_view._UrtextProjectList.current_project.title, t) 
+			print(titles)
 			main_view.title_autocompleter.titles = titles
-			return main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
+			main_view.title_autocompleter.action = main_view.title_autocompleter.open_node
+			main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
 
 class SyntaxHighlighter(object):
 
