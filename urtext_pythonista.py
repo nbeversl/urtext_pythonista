@@ -761,21 +761,22 @@ class HistoryView(object):
 class TitleAutoCompleter(ui.ListDataSource):
 	""" Used for searching Nodes and doing operations on the selected """
 
-	def textfield_did_change(self, textfield):
-
+	def textfield_did_begin_editing(self, textfield):
 		main_view.title_dropDown.hidden = False
 		main_view.title_dropDown.bring_to_front()
-		entry = textfield.text.lower()
 		self.titles_keys = self.titles.keys()
+		self.items = self.titles_keys
+		main_view.title_dropDown.height = min(main_view.title_dropDown.row_height * len(self.items), 5*main_view.title_dropDown.row_height)
 
+	def textfield_did_change(self, textfield):
+
+		entry = textfield.text.lower()
 		options = sorted(
 			self.titles_keys, 
 			key=lambda pair: fuzz.ratio(entry, pair), 
 			reverse=True)
 
 		self.items = options
-
-		main_view.title_dropDown.height = min(main_view.title_dropDown.row_height * len(options), 5*main_view.title_dropDown.row_height)
 
 	def sort_options(self, entry):
 
@@ -866,11 +867,14 @@ class MetaAutoCompleter(ui.ListDataSource):
 
 class KeywordAutoCompleter(ui.ListDataSource):
 	
-	def textfield_did_change(self, textfield):
-		
+
+	def textfield_did_being_editing(self, textfield):
+
 		main_view.keyword_dropDown.hidden = False
 		main_view.keyword_dropDown.bring_to_front()
-		
+
+	def textfield_did_change(self, textfield):
+				
 		entry = textfield.text.lower()
 
 		options = main_view._UrtextProjectList.current_project.keywords.keys()
