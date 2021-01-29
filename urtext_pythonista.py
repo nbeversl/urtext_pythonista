@@ -88,13 +88,13 @@ class MainView(ui.View):
 		self.size_field(self.meta_search)
 		
 		# UI List of projects
-		self.textfield=ui.TextField()
-		self.textfield.hidden=True
+		self.project_dropDown = ui.TableView()
 		self.project_list = ui.ListDataSource(items=[]) 
-		self.project_selector = ui.TableView()
-		self.project_selector.hidden = True
-		self.project_selector.delegate = self.project_list
-		self.project_selector.data_source = self.project_list
+		self.project_dropDown.data_source = self.project_list
+		self.project_dropDown.hidden = True
+		self.project_dropDown.delegate = self.project_list 
+
+		self.size_field(self.project_dropDown)
 
 		# Keyword autocompleter
 		self.keyword_autocompleter = KeywordAutoCompleter(items=[])
@@ -287,7 +287,7 @@ class MainView(ui.View):
 		self.add_subview(button_line)
 		self.add_subview(self.menu_list)
 		self.add_subview(self.history_view)
-		self.add_subview(self.textfield)   
+		self.add_subview(self.project_dropDown)   
 
 		self.tvo = ObjCInstance(self.tv)
 		btn_ln = ObjCInstance(button_line)
@@ -450,22 +450,18 @@ class MainView(ui.View):
 		self.menu_list.bring_to_front()
 
 	def select_project(self, sender): 
-	  
-		self.tv.end_editing()
 		self.project_list.items = self._UrtextProjectList.project_titles()
-		self.size_field(self.project_selector)
-		self.project_selector.height = 40*len(self.project_list.items)
-		
-		self.project_selector.hidden = False
-		self.project_selector.bring_to_front()
-		self.project_list.action = self.switch_project
+		self.project_dropDown.height = self.project_dropDown.height * len(self.project_list.items)
+		self.project_list.action = self.switch_project		
+		self.project_dropDown.hidden=False
+		self.project_dropDown.bring_to_front()
 
 	def switch_project(self, sender):
 	  
 		selection = sender.selected_row
 		self.tv.begin_editing()
 		self._UrtextProjectList.set_current_project(self.project_list.items[selection])
-		self.project_selector.hidden = True
+		self.project_dropDown.hidden = True
 		node_to_open = self._UrtextProjectList.nav_current()
 		if node_to_open:
 			return self.open_node(node_to_open)
@@ -499,20 +495,22 @@ class MainView(ui.View):
 	
 	def refresh_open_file_if_modified(self, future):
 		s = future.result()
-		renamed_file = os.path.basename(s)
-		"""print(renamed_file)
-		print(self.current_open_file)
+		renamed_file = os.path.join(self._UrtextProjectList.current_project.path, s)
 		if renamed_file != self.current_open_file:
-			console.hud_alert('File renamed, reopened','success',1)
-			self.open_file(renamed_file)"""
-		self.open_file(self.current_open_file)
+			console.hud_alert('File renamed','success',1)
+			self.open_file(renamed_file, save_first=False)
+		else:
+			self.open_file(self.current_open_file, save_first=False)
 		
 	def refresh_file(self, text=''):   
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
 		syntax.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
-		self.tv.selected_range = position
+		try:
+			self.tv.selected_range = position
+		except ValueError:
+			pass
 
 	def open_file(self, filename, save_first=True):
 		"""
@@ -612,7 +610,6 @@ class MainView(ui.View):
 		contents = self.tv.text[selection[0]:selection[1]]
 		new_inline_node_contents, node_id = self._UrtextProjectList.current_project.add_inline_node(
 				date=datetime.datetime.now(),
-				trailing_id=True,
 				contents=contents)
 		self.tv.replace_range(selection, new_inline_node_contents)
 		if locate_inside:
@@ -633,8 +630,9 @@ class MainView(ui.View):
 			self.open_file(filename)
 
 		position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]	
-		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
+		self.tv.begin_editing()
+		self.tv.selected_range = (position, position)
 		
 		if add_to_nav:
 			self._UrtextProjectList.nav_new(node_id)
@@ -876,7 +874,6 @@ class KeywordAutoCompleter(ui.ListDataSource):
 	def textfield_did_change(self, textfield):
 				
 		entry = textfield.text.lower()
-
 		options = main_view._UrtextProjectList.current_project.keywords.keys()
 
 		# speed this up?
@@ -891,7 +888,6 @@ class KeywordAutoCompleter(ui.ListDataSource):
 	def textfield_did_end_editing(self, textfield):
 				
 		main_view.keyword_dropDown.hidden = True
-		main_view.keyword_search.text= ''
 		main_view.keyword_search.hidden = True
 		self.items = []
 		
@@ -936,10 +932,8 @@ class SyntaxHighlighter(object):
 		main_view.take_snapshot()
 
 	def textview_did_change_selection(self, textview):
-	# 	""" Hide all popups which clicking in the text editor """
-	# 	pass
-		
-	 	main_view.project_selector.hidden = True
+	# 	""" Hide all popups which clicking in the text editor """		
+	 	main_view.project_dropDown.hidden = True
 	 	main_view.menu_list.hidden = True
 	 	main_view.keyword_dropDown.hidden = True
 	 	main_view.keyword_search.hidden = True
