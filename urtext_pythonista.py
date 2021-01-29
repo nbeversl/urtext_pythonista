@@ -494,14 +494,15 @@ class MainView(ui.View):
 			self.saved = True
 	
 	def refresh_open_file_if_modified(self, future):
-		s = future.result()
-		renamed_file = os.path.join(self._UrtextProjectList.current_project.path, s)
-		if renamed_file != self.current_open_file:
-			console.hud_alert('File renamed','success',1)
-			self.open_file(renamed_file, save_first=False)
-		else:
-			self.open_file(self.current_open_file, save_first=False)
-		
+		# wait for compile modifications if any
+		filename = future.result()
+		self.saved = False
+		# future: for atomic rename feature
+		# if renamed_file != self.current_open_file:
+		# 	console.hud_alert('File renamed','success',1)
+		# 	self.open_file(renamed_file, save_first=False)
+		self.open_file(self.current_open_file, save_first=False)
+			
 	def refresh_file(self, text=''):   
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
