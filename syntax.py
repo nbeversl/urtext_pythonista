@@ -78,6 +78,11 @@ colors = {
           { '|' : { 'self': unobtrusive }  },
         ]
     },
+    # hash metadata shorthand
+    r'(?:^|\s)#[A-Z,a-z].*?\b' :
+    {
+        'self':'bold',
+    },
 
     # Node Pointers
     r'>>[0-9,a-z]{3}\b':{

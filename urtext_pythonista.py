@@ -330,12 +330,10 @@ class MainView(ui.View):
 			file_pos = file_pos,
 			col_pos = col_pos)
 
-		# future = self._UrtextProjectList.current_project.pop_node(filename=filename, position=position)
-		if future:
-			if self._UrtextProjectList.current_project.is_async:
-				self.executor.submit(self.refresh_open_file_if_modified, future)
-			else:
-				self.refresh_open_file_if_modified(future)
+		if self._UrtextProjectList.current_project.is_async:
+			self.executor.submit(self.refresh_open_file_if_modified, future)
+		else:
+			self.refresh_open_file_if_modified(future)
 
 	def insert_id(self, sender):
 		new_id = self._UrtextProjectList.current_project.next_index()
@@ -477,18 +475,12 @@ class MainView(ui.View):
 			filenames = filenames.result()
 		if not isinstance(filenames, list):
 			filenames = [filenames]
-		print('RESULT OF THE FUTURE')
-		print(filenames)
-		print(self.current_open_file)
 		self.saved = False
 		if self.current_open_file in filenames:
-			print('FILE IS OPEN')
 			with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file), encoding="utf-8") as file:
 				contents=file.read()
 			if hash(contents) == self.current_open_file_hash:
-				print('BUT IS THE SAME.')
 				return False
-			print('REOPENING '+self.current_open_file)
 			self.open_file(self.current_open_file, save_first=False)
 			
 	def refresh_file(self, text=''):   
@@ -648,7 +640,7 @@ class MainView(ui.View):
 	def new_node(self, sender):        
 		new_node = self._UrtextProjectList.current_project.new_file_node()
 		self.open_node(new_node['id'])
-		self.tv.selected_range = (0,0)
+		self.tv.selected_range = (len(self.tx.text)-1,len(self.tx.text)-1)
 		self.tv.begin_editing()
 
 	def tag_from_other(self, sender):
