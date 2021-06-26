@@ -1,6 +1,6 @@
 from urtext.project_list import ProjectList
+from urtext.project import soft_match_compact_node
 import time
-import sched
 import os
 import datetime
 import ui
@@ -16,13 +16,10 @@ from objc_util import *
 import syntax
 import platform
 import clipboard
-import queue
-import inspect
 
 node_id_regex = r'\b[0-9,a-z]{3}\b'
 app = None
 main_view = None
-WATCHDOG = False
 
 class MainView(ui.View):
 
@@ -37,7 +34,6 @@ class MainView(ui.View):
 		self.urtext_project_path = urtext_project_path
 		self._UrtextProjectList = ProjectList(urtext_project_path, 
 			import_project=import_project,
-			watchdog=WATCHDOG,
 			first_project=first_project)
 		self.current_open_file = None
 		self.current_open_file_hash = None
@@ -49,19 +45,19 @@ class MainView(ui.View):
 		"""
 		Build view components. 
 		"""
-		button_height = 42
-		button_width = 42
+		button_height = 40
+		button_width = 50
 		
 		w,h = ui.get_screen_size()
 		self.height = h
 		self.width = w
-		self.frame= (0,0,w,h)
+		self.frame= (0,32,w,h)
 
 		# main text (editor) view
 		self.tv=ui.TextView()
-		self.tv.frame=(0,18,w,h)
+		self.tv.frame=(0,32,w,h)
 		self.tv.auto_content_inset = True
-		self.tv.background_color = '#e5dddc' # old '#282923'
+		self.tv.background_color = '#e5dddc'
 	
 		# Title autocompleter
 		self.title_autocompleter = TitleAutoCompleter(items=[])
@@ -128,7 +124,6 @@ class MainView(ui.View):
 			'Link >',
 			'Point >>',
 			'Pop Node',
-			'Project Log',
 		   ])
 		menu_options.action = self.delegate_menu
 
@@ -207,8 +202,8 @@ class MainView(ui.View):
 		search_all_project = ui.Button(title='*')
 		search_all_project.action = self.search_all_project
 
-		browse_history_button = ui.Button(title='g')
-		browse_history_button.action = self.browse_history
+		# browse_history_button = ui.Button(title='g')
+		# browse_history_button.action = self.browse_history
 
 		copy_link_to_current_node_button = ui.Button(title='c')
 		copy_link_to_current_node_button.action = self.copy_link_to_current_node
@@ -222,7 +217,13 @@ class MainView(ui.View):
 		keywords_button = ui.Button(title='k')
 		keywords_button.action=self.search_keywords
 
-		buttons = [ 
+		free_associate_button = ui.Button(title='^')
+		free_associate_button.action=self.free_associate
+
+		link_to_new_node_button = ui.Button(title='| >')
+		link_to_new_node_button.action=self.link_to_new_node
+
+		buttons = [  
 			open_link_button,
 			search_by_title,
 			new_node_button, 
@@ -235,7 +236,7 @@ class MainView(ui.View):
 			forward_button,
 			timestamp_button,
 			manual_timestamp_button,
-			browse_history_button,
+			#browse_history_button,
 			new_inline_node_button,
 			copy_link_to_current_node_button,
 			copy_link_to_current_node_with_project_button,
@@ -247,33 +248,36 @@ class MainView(ui.View):
 			insert_backtick_button,
 			search_all_project,
 			hide_keyboard_button,
-			keywords_button
+			keywords_button,
+			free_associate_button,
+			link_to_new_node_button
 			]
 
 		button_line = ui.ScrollView()
-		button_line.height = 36
+		button_line.height = 50
 		button_line.width = w
-		button_line.content_size = (len(buttons) * 42, 32)
+		button_line.content_size = (len(buttons) * (button_width+5), 32)
 		button_line.x=0
 		button_line.y=20
-		button_line.background_color = '#282923'
+		button_line.background_color = '#e5dddc'
 		button_x_position = 0
-		button_y_position = 0
+		button_y_position = 10
 
 		"""
 		Size the buttons
 		"""
 
 		for button in buttons:
-			button.corner_radius = 5
+			button.corner_radius = 4
 			button.frame = (button_x_position, 
 				button_y_position, 
-				button_x_position + button_width, 
-				button_y_position + button_height)
+				button_width, 
+				button_height)
 			button_line.add_subview(button)
-			button_x_position += button_width
-			button.size_to_fit()
+			button_x_position += button_width + 5
 			button.border_width=1
+			button.border_color = '#e3d9d8'
+			button.background_color = "#ffffff"
 
 		# Set up the button row as input accessory
 
@@ -294,37 +298,14 @@ class MainView(ui.View):
 		self.tvo.setInputAccessoryView_(btn_ln)
 		self.tv.delegate = SyntaxHighlighter(self.tvo)
 		self.tvo.setAllowsEditingTextAttributes_(True)
-			  
-
-	def browse_history(self, sender):
-		self.take_snapshot()
-		self.current_file_history = self._UrtextProjectList.current_project.get_history(self.current_open_file)
-		if not self.current_file_history:
-			return None
-		ts_format = self._UrtextProjectList.current_project.settings['timestamp_format']
-		string_timestamps = [
-			datetime.datetime.fromtimestamp(
-				int(i)).strftime(ts_format) for i in sorted(
-					self.current_file_history.keys(), reverse=True
-					)]
-		self.history_stamps.items = string_timestamps
-		self.tv.end_editing()
-		self.size_field(self.history_view)
-		self.history_view.height = 160     # 4 cels high
-		self.history_view.hidden = False
-		self.history_view.bring_to_front()
 	
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
 
-	def take_snapshot(self):
-		if self.current_open_file:
-			self._UrtextProjectList.current_project.snapshot_diff(self.current_open_file, self.tv.text)
-
 	def search_all_project(self, sender):
 		self.title_autocompleter.action = self.title_autocompleter.open_node
 		self.title_autocompleter.titles = self._UrtextProjectList.titles()
-		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
+		self.c(self.title_search, self.title_dropDown)
 
 	def insert_dynamic_def(self,sender):
 		node_id = self.new_inline_node(None, locate_inside=False)
@@ -339,17 +320,26 @@ class MainView(ui.View):
 		self.tv.replace_range(self.tv.selected_range, '`')
 	
 	def pop_node(self, sender):
-		
+		filename = self.current_open_file		
+		file_pos = self.tv.selected_range[0] 
+		line, col_pos = get_full_line(file_pos, self.tv)
 		self.save(None)
-		filename = self.current_open_file
-		position = self.tv.selected_range[0]
-		future = self._UrtextProjectList.current_project.pop_node(filename=filename, position=position)
+		future = self._UrtextProjectList.current_project.run_action('POP_NODE',
+			line,
+			filename,
+			file_pos = file_pos,
+			col_pos = col_pos)
+
+		# future = self._UrtextProjectList.current_project.pop_node(filename=filename, position=position)
 		if future:
-			self.executor.submit(self.refresh_open_file_if_modified, future)
+			if self._UrtextProjectList.current_project.is_async:
+				self.executor.submit(self.refresh_open_file_if_modified, future)
+			else:
+				self.refresh_open_file_if_modified(future)
 
 	def insert_id(self, sender):
 		new_id = self._UrtextProjectList.current_project.next_index()
-		self.tv.replace_range(self.tv.selected_range, 'id::'+new_id+'; ')
+		self.tv.replace_range(self.tv.selected_range, '@'+new_id)
 
 	def move_file(self, sender):
 		self.project_list.items = self._UrtextProjectList.project_titles()
@@ -378,9 +368,7 @@ class MainView(ui.View):
 
 	def reload_projects(self, sender):
 		self.close()
-		self._UrtextProjectList = ProjectList(
-			self.urtext_project_path, 
-			watchdog=WATCHDOG)
+		self._UrtextProjectList = ProjectList(self.urtext_project_path)
 		self.present('fullscreen', hide_title_bar=True)
 		self.open_home(None)
 		
@@ -405,7 +393,6 @@ class MainView(ui.View):
 			6 'Link >',
 			7 'Point >>',
 			8 'Pop Node',
-			9 'Project Log'
 		"""
 
 		if sender.selected_row == 0: # Initialize new project
@@ -436,14 +423,6 @@ class MainView(ui.View):
 
 		if sender.selected_row == 8:
 			self.pop_node(None)
-
-		if sender.selected_row == 9:
-			self.load_log(None)
-
-	def load_log(self, sender):
-		log_node = self._UrtextProjectList.current_project.get_log_node()
-		if log_node:
-			self.open_node(log_node)
 
 	def show_menu(self, option_list):
 		self.menu_list.hidden=False
@@ -486,22 +465,31 @@ class MainView(ui.View):
 			with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file),'w', encoding='utf-8') as d:
 				d.write(contents)
 			self.current_open_file_hash = hash(contents)
-			result = self._UrtextProjectList.current_project.on_modified(self.current_open_file)
+			future = self._UrtextProjectList.current_project.on_modified(self.current_open_file)
 			if self._UrtextProjectList.current_project.is_async:
-				self.executor.submit(self.refresh_open_file_if_modified, result)
+				self.executor.submit(self.refresh_open_file_if_modified, future)
 			else:
-				self._UrtextProjectList.current_project.on_modified(result)
+				self.refresh_open_file_if_modified(future)
 			self.saved = True
 	
-	def refresh_open_file_if_modified(self, future):
-		# wait for compile modifications if any
-		filename = future.result()
+	def refresh_open_file_if_modified(self, filenames):
+		if self._UrtextProjectList.current_project.is_async:
+			filenames = filenames.result()
+		if not isinstance(filenames, list):
+			filenames = [filenames]
+		print('RESULT OF THE FUTURE')
+		print(filenames)
+		print(self.current_open_file)
 		self.saved = False
-		# future: for atomic rename feature
-		# if renamed_file != self.current_open_file:
-		# 	console.hud_alert('File renamed','success',1)
-		# 	self.open_file(renamed_file, save_first=False)
-		self.open_file(self.current_open_file, save_first=False)
+		if self.current_open_file in filenames:
+			print('FILE IS OPEN')
+			with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file), encoding="utf-8") as file:
+				contents=file.read()
+			if hash(contents) == self.current_open_file_hash:
+				print('BUT IS THE SAME.')
+				return False
+			print('REOPENING '+self.current_open_file)
+			self.open_file(self.current_open_file, save_first=False)
 			
 	def refresh_file(self, text=''):   
 		position = self.tv.selected_range
@@ -522,24 +510,36 @@ class MainView(ui.View):
 		if not os.path.exists(f):
 			console.hud_alert('FILE not found. Synced?','error',1)
 			return None
-			
-		with open(f,'r', encoding='utf-8') as d:
-			contents=d.read()
-
-		if filename == self.current_open_file and hash(contents) == self.current_open_file_hash:
-			return False
-
+		
 		if save_first and self.current_open_file != filename:
 			self.save(None)
 
-		# if self.current_open_file == filename:
-		#  	self.tv.scroll_enabled = False
+		future = self._UrtextProjectList.visit_file(f)
+		with open(f,'r', encoding='utf-8') as d:
+			contents=d.read()
+
+		# TODO: Might cause ObjC crash ?
+		self.tv.scroll_enabled = False
+		file_position = self.tv.selected_range[0]
 		selected_range = self.tvo.selectedRange()
+
 		self.current_open_file = filename
 		self.current_open_file_hash = hash(contents)
 		self.tv.text=contents
+		if self._UrtextProjectList.current_project.is_async:
+			self.executor.submit(self.refresh_open_file_if_modified, future)
+		else:
+			self.refresh_open_file_if_modified(future)
 		self.tvo.scrollRangeToVisible(selected_range) 
 		syntax.setAttribs(self.tv, self.tvo)
+
+		if filename == self.current_open_file:
+			try: 
+				self.tv.selected_range = (file_position, file_position)
+			except ValueError:
+				pass
+
+		self.tv.scroll_enabled = True
 		return True
 
 	def timestamp(self, sender):
@@ -551,33 +551,38 @@ class MainView(ui.View):
 			datestamp)
 
 	def open_link(self, sender):
-				
-		file_position = self.tv.selected_range[0] 
-		line, line_position = get_full_line(file_position, self.tv)
-		link = self._UrtextProjectList.get_link_and_set_project(line, position=line_position)
+		
+		filename = self.current_open_file		
+		file_pos = self.tv.selected_range[0] 
+		line, col_pos = get_full_line(file_pos, self.tv)
+		link = self._UrtextProjectList.get_link_and_set_project(
+			line, 
+			filename, 
+			col_pos=col_pos,
+			file_pos=file_pos)
 
-		if not link:
+		if link == None:
 			if self._UrtextProjectList.current_project.compiled:
 				console.hud_alert('Link not in the project.','error',1)
 			else:
 				console.hud_alert('Project is still compiling.','error',1)
 			return None
 
-		if link[0] == 'EDITOR_LINK':
-			return self.open_file(link[1])
+		if link['kind'] == 'EDITOR_LINK':
+			return self.open_file(link['link'])
 			
-		if link[0] == 'NODE':
-			return self.open_node(link[1])
+		if link['kind'] == 'NODE':
+			return self.open_node(link['link'])
 						
-		if link[0] == 'HTTP':  
-			return webbrowser.open('safari-'+link[1])
+		if link['kind'] == 'HTTP':  
+			return webbrowser.open('safari-'+link['link'])
 			
-		if link[0] == 'FILE':
-			if not os.path.exists(os.path.join(self._UrtextProjectList.current_project.path, link[1])):
-				console.hud_alert(link[1] + ' not found.', 'error',1)
+		if link['kind'] == 'FILE':
+			if not os.path.exists(os.path.join(self._UrtextProjectList.current_project.path, link['link'])):
+				console.hud_alert(link['link'] + ' not found.', 'error',1)
 				return
 			# This is the best we can do right now in iOS
-			console.open_in(os.path.join(self._UrtextProjectList.current_project.path, link[1]))
+			console.open_in(os.path.join(self._UrtextProjectList.current_project.path, link['link']))
 
 	def copy_link_to_current_node(self, sender, include_project=False):
 		if not self.current_open_file:
@@ -601,48 +606,47 @@ class MainView(ui.View):
 			self._UrtextProjectList.nav_new(home_id)
 			self.open_node(home_id)
 		else:
-			console.hud_alert('No home node for this project','error',0.5)
+			if self._UrtextProjectList.current_project.compiled:
+				console.hud_alert('No home node for this project','error',0.5)
+			else:
+				console.hud_alert('Project is still compiling','error',0.5)				
 
 	def new_inline_node(self, sender, locate_inside=True):
-		# metadata={ #'tags': '',
-		#          #'from': platform.node()
-		#          }
 		selection = self.tv.selected_range
 		contents = self.tv.text[selection[0]:selection[1]]
-		new_inline_node_contents, node_id = self._UrtextProjectList.current_project.add_inline_node(
-				date=datetime.datetime.now(),
-				contents=contents)
-		self.tv.replace_range(selection, new_inline_node_contents)
+		new_node = self._UrtextProjectList.current_project.new_inline_node(contents=contents)
+		self.tv.replace_range(selection, new_node['contents'])
 		if locate_inside:
 			self.tv.selected_range = (selection[0]+3, selection[0]+3)
-		return node_id
+		return new_node['id']
 
+	## THIS IS THE FUNCTION WHERE THE PROBLEM IS
 	def open_node(self, 
 			node_id, 
-			add_to_nav=True # method can be called without affecting nav
+			add_to_nav=True # so method can be called without affecting nav
 			):
 
 		if node_id not in self._UrtextProjectList.current_project.nodes:
-			console.hud_alert('Node '+node_id+' not in current project' ,'error',0.5)
+			if  self._UrtextProjectList.current_project.compiled:
+				console.hud_alert('Node '+node_id+' not in current project' ,'error',0.5)
+			else:
+				console.hud_alert('Project is still compiling' ,'error',0.5)
 			return
+		position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
+		if add_to_nav:
+			self._UrtextProjectList.nav_new(node_id)
 
 		filename = self._UrtextProjectList.current_project.nodes[node_id].filename
 		if os.path.join(self._UrtextProjectList.current_project.path, filename) != self.current_open_file:
 			self.open_file(filename)
-
-		position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]	
+		
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 		self.tv.begin_editing()
 		self.tv.selected_range = (position, position)
 		
-		if add_to_nav:
-			self._UrtextProjectList.nav_new(node_id)
 
 	def new_node(self, sender):        
-		new_node = self._UrtextProjectList.current_project.new_file_node(
-			date=datetime.datetime.now()
-			)
-		
+		new_node = self._UrtextProjectList.current_project.new_file_node()
 		self.open_node(new_node['id'])
 		self.tv.selected_range = (0,0)
 		self.tv.begin_editing()
@@ -651,20 +655,13 @@ class MainView(ui.View):
 		position = self.tv.selected_range[0]
 		line = self.tv.text[position:position+250]
 		link = self._UrtextProjectList.current_project.get_link(line)
-		if link and link[0] == 'NODE':
-			future = self._UrtextProjectList.current_project.tag_other_node(link[1], 'tags::done;')
-			self.executor.submit(self.refresh_open_file_if_modified, future)
+		if link and link['kind'] == 'NODE':
+			future = self._UrtextProjectList.current_project.tag_other_node(link['link'], 'tags::done;')
+			if self._UrtextProjectList.current_project.is_async:
+				self.executor.submit(self.refresh_open_file_if_modified, future)
+			else:
+				self.refresh_open_file_if_modified(future)
 			console.hud_alert('Tagged Done','success',0.5)
-
-	def node_list(self, sender):
-		if 'zzz' in self._UrtextProjectList.current_project.nodes:
-			self.open_node('zzz')
-		else:
-			console.hud_alert('No zzz node','error',0.5)
-
-	def metadata_list(self, sender):
-		if 'zzy' in self._UrtextProjectList.current_project.nodes:
-			self.open_node('zzy')
 
 	def meta_autocomplete(self, sender): #works
 		
@@ -695,13 +692,18 @@ class MainView(ui.View):
 		self.title_autocompleter.action = self.title_autocompleter.link_to_node
 		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
 
+	def link_to_new_node(self, sender):
+		path = self._UrtextProjectList.current_project.path
+		new_node = self._UrtextProjectList.current_project.new_file_node()
+		self.tv.replace_range(self.tv.selected_range, '| >'+ new_node['id'])
+
 	def point_to_node(self, sender):
 		self.title_autocompleter.action = self.title_autocompleter.point_to_node
 		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
 
 	def nav_back(self, sender):
 		last_node = self._UrtextProjectList.nav_reverse()
-		if last_node:     
+		if last_node:
 			self.open_node(last_node, add_to_nav=False)
 
 	def nav_forward(self, sender):
@@ -710,22 +712,42 @@ class MainView(ui.View):
 		if next_node:
 			self.open_node(next_node, add_to_nav=False)
 
+	@ui.in_background
 	def delete_node(self, sender):
-		future = self._UrtextProjectList.current_project.delete_file(self.current_open_file)
-		self.current_open_file = None
-		self.nav_back(None)
-		console.hud_alert('Deleted','success',0.5)
-		self.executor.submit(self.refresh_open_file_if_modified, future)
-		
+		if console.alert(
+			'Delete'
+			'',
+			'Delete this file node?',
+			'Yes'
+			) == 1 :
+			future = self._UrtextProjectList.current_project.delete_file(self.current_open_file)
+			console.hud_alert('Deleted','success',0.5)
+			self.current_open_file = None
+			self.nav_back(None)
+			if self._UrtextProjectList.current_project.is_async:
+				self.executor.submit(self.refresh_open_file_if_modified, future)
+			else:
+				self.refresh_open_file_if_modified(future)
+			
 	def compact_node(self, sender):
 		selection = self.tv.selected_range
 		contents = self.tv.text[selection[0]:selection[1]]
 		end_of_line = self.find_end_of_line(selection[1])
+		line, col_pos = get_full_line(selection[1], self.tv)
 
-		insert_text = self._UrtextProjectList.current_project.add_compact_node(contents=contents)           
+		if soft_match_compact_node(line):
+			replace = False
+			contents = self._UrtextProjectList.current_project.add_compact_node()
+		else:
+			# If it is not a compact node, make it one and add an ID
+			replace = True
+			contents = self._UrtextProjectList.current_project.add_compact_node(contents=line)
 
-		self.tv.replace_range((end_of_line,end_of_line), '\n' + insert_text + '\n')
-		self.tv.selected_range = (end_of_line + 3, end_of_line + 3)
+		if replace:
+			self.tv.replace_range( (end_of_line-len(line),end_of_line) ,contents)
+		else:
+			self.tv.replace_range((end_of_line,end_of_line), '\n' + contents + '\n')
+			self.tv.selected_range = (end_of_line + 3, end_of_line + 3)
 
 	def find_end_of_line(self, position):
 		contents = self.tv.text
@@ -735,18 +757,24 @@ class MainView(ui.View):
 				break
 		return position
 
-
-	def show_timeline(self, sender):
-		if self.current_open_file:
-			self.save(None)
-		timeline = self._UrtextProjectList.current_project.build_timeline()
-		self.tv.text = timeline
-		self.current_open_file = None
-
 	def search_keywords(self, sender):
 		self.keyword_autocompleter.hidden = False
 		self.keyword_autocompleter.action = self.keyword_autocompleter.optionWasSelected     
 		self.show_search_and_dropdown(self.keyword_search, self.keyword_dropDown)
+
+	def free_associate(self, sender):
+		full_line, col_pos = get_full_line(self.tv.selected_range[0], self.tv)
+		self.title_autocompleter.action = self.title_autocompleter.open_node
+		titles = {}
+
+		for t in self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_assoc_nodes( 
+			full_line,
+			self.current_open_file,
+			self.tv.selected_range[0],
+			):
+			titles[self._UrtextProjectList.current_project.nodes[t].title] = (self._UrtextProjectList.current_project.title, t)
+		self.title_autocompleter.titles = titles
+		self.show_search_and_dropdown(self.title_search, self.title_dropDown)
 
 class HistoryView(object):
 
@@ -865,7 +893,6 @@ class MetaAutoCompleter(ui.ListDataSource):
 
 
 class KeywordAutoCompleter(ui.ListDataSource):
-	
 
 	def textfield_did_being_editing(self, textfield):
 
@@ -875,7 +902,7 @@ class KeywordAutoCompleter(ui.ListDataSource):
 	def textfield_did_change(self, textfield):
 				
 		entry = textfield.text.lower()
-		options = main_view._UrtextProjectList.current_project.keywords.keys()
+		options = main_view._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_keywords()
 
 		# speed this up?
 		self.items = sorted(
@@ -896,16 +923,16 @@ class KeywordAutoCompleter(ui.ListDataSource):
 		keyword_selected = self.items[self.selected_row]
 		main_view.keyword_search.text = keyword_selected       
 		main_view.keyword_search.end_editing()
-		if len(main_view._UrtextProjectList.current_project.keywords[keyword_selected]) == 1:
+
+		selections = main_view._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_by_keyword(keyword_selected)
+
+		if len(selections) == 1:
 			main_view.tv.begin_editing()
-			return main_view.open_node(main_view._UrtextProjectList.current_project.keywords[keyword_selected][0])
+			return main_view.open_node(selections[0])
 		else:
-			print('MAKING TITLES')
 			titles = {}
-			for t in main_view._UrtextProjectList.current_project.keywords[keyword_selected]:
-				print(t)
+			for t in selections:
 				titles[main_view._UrtextProjectList.current_project.nodes[t].title] = (main_view._UrtextProjectList.current_project.title, t) 
-			print(titles)
 			main_view.title_autocompleter.titles = titles
 			main_view.title_autocompleter.action = main_view.title_autocompleter.open_node
 			main_view.show_search_and_dropdown(main_view.title_search, main_view.title_dropDown)
@@ -934,12 +961,12 @@ class SyntaxHighlighter(object):
 
 	def textview_did_change_selection(self, textview):
 	# 	""" Hide all popups which clicking in the text editor """		
-	 	main_view.project_dropDown.hidden = True
-	 	main_view.menu_list.hidden = True
-	 	main_view.keyword_dropDown.hidden = True
-	 	main_view.keyword_search.hidden = True
-	 	if not main_view.updating_history:
-	 		main_view.history_view.hidden = True
+		main_view.project_dropDown.hidden = True
+		main_view.menu_list.hidden = True
+		main_view.keyword_dropDown.hidden = True
+		main_view.keyword_search.hidden = True
+		if not main_view.updating_history:
+			main_view.history_view.hidden = True
 
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')

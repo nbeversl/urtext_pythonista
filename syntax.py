@@ -55,7 +55,6 @@ colors = {
       'self': unobtrusive,
     },
 
-
     # compact node opener
     r'^[^\S\n]*?•' : {
        'self':red,
@@ -90,6 +89,11 @@ colors = {
         'self':green
         },                             
 
+     # error messages
+    r'<!{2}.*?!{2}>\n?' : {
+      'self' :UIColor.redColor(),
+    },
+
     # Project Links
     r'/=>\"(.*?)\"(>[0-9,a-z]{3})\b/':{ 'self':red },
     
@@ -110,7 +114,7 @@ colors = {
         },  
         
     #node titles
-     r'(?<={)([^_]*?(?= _))|(^[^_{]*?(?= _))':{ 
+     r'(?<={)([^\n{_]*?(?= _\b))|(^[^\n_{]*?(?= _\b))':{ 
         'self':'bold',
         },
 }
@@ -181,7 +185,7 @@ def setAttribs(tv, tvo, initial=False):
 
         if wrappers[position] == '{' :
             nested_level += 1 
-            if nested_level < len(wrappers):
+            if nested_level < len(wrapper_colors):
 	            mystro.addAttribute_value_range_(
 	              ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
 	              wrapper_colors[nested_level],
@@ -191,8 +195,8 @@ def setAttribs(tv, tvo, initial=False):
             nested_level += 1
             compact_node_open = True
 
-        if wrappers[position] == '}' :           
-            if nested_level < len(wrappers):
+        if wrappers[position] == '}' and len(wrapper_colors) >= nested_level:           
+            if nested_level < len(wrapper_colors):
 	            mystro.addAttribute_value_range_(
 	              ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
 	              wrapper_colors[nested_level], #grey5, #
