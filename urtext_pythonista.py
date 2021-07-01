@@ -564,7 +564,7 @@ class MainView(ui.View):
 			return self.open_file(link['link'])
 			
 		if link['kind'] == 'NODE':
-			return self.open_node(link['link'])
+			return self.open_node(link['link'], position=link['dest_position'])
 						
 		if link['kind'] == 'HTTP':  
 			return webbrowser.open('safari-'+link['link'])
@@ -612,9 +612,9 @@ class MainView(ui.View):
 			self.tv.selected_range = (selection[0]+3, selection[0]+3)
 		return new_node['id']
 
-	## THIS IS THE FUNCTION WHERE THE PROBLEM IS
 	def open_node(self, 
 			node_id, 
+			position=None,
 			add_to_nav=True # so method can be called without affecting nav
 			):
 
@@ -624,7 +624,12 @@ class MainView(ui.View):
 			else:
 				console.hud_alert('Project is still compiling' ,'error',0.5)
 			return
-		position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
+			
+		if not position:
+			position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
+		else:
+			position = int(position)
+		
 		if add_to_nav:
 			self._UrtextProjectList.nav_new(node_id)
 
@@ -640,7 +645,7 @@ class MainView(ui.View):
 	def new_node(self, sender):        
 		new_node = self._UrtextProjectList.current_project.new_file_node()
 		self.open_node(new_node['id'])
-		self.tv.selected_range = (len(self.tx.text)-1,len(self.tx.text)-1)
+		self.tv.selected_range = (len(self.tv.text)-1,len(self.tv.text)-1)
 		self.tv.begin_editing()
 
 	def tag_from_other(self, sender):
