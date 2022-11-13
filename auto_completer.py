@@ -17,26 +17,32 @@ class AutoCompleter:
 
 	def textfield_did_change(self, textfield):
 		entry = textfield.text.lower()
-		matches = []
-		for title in self.items.keys():
-			if entry.lower() == title.lower()[:len(entry)]:
-				matches.append(title)
-
 		fuzzy_options = sorted(
-			self.items, 
-			key=lambda title: fuzz.ratio(entry, title), 
+			self.items,
+			key =lambda option: fuzz.ratio(entry, option), 
 			reverse=True)
+		self.dropDown.data_source.items=fuzzy_options[:30]
 
-		matches.extend(fuzzy_options)
-		self.dropDown.data_source.items=matches[:30]
+	def hide(self):		
+		self.dropDown.hidden = True
+		self.search.hidden = True
+		self.reset()
+
+	def reset(self):
+		self.search.text=''
+		self.items = []
 
 	def tableview_did_select(self, tableview, section, row):
-		self.search.text = self.dropDown.data_source.items[row]   
+		self.search.text = self.dropDown.data_source.items[row]
+		return self.action(self.dropDown.data_source.items[row])
+		self.hide()
 
 	def set_items(self, items):
-		self.items = items
-		self.table_items = items.keys()
-		self.dropDown.data_source = ui.ListDataSource(items=self.table_items)
+		if isinstance(items, dict):
+			self.items = items.keys()
+		if isinstance(items, list):
+			self.items = items
+		self.dropDown.data_source = ui.ListDataSource(items=self.items)
 
 	def show(self):
 		self.search.hidden = False
@@ -49,9 +55,10 @@ class AutoCompleter:
 		self.dropDown.width = self.search.width
 		self.dropDown.row_height = self.search.height
 		self.search.begin_editing()
+		#self.dropDown.height = 35 * len(self.items.keys())
 
 	def set_action(self, action):
-		self.dropDown.delegate.action = action
+		self.action = action
 
 	def size_fields(self, view_width, view_height):
 		self.search.height = 40
@@ -59,7 +66,7 @@ class AutoCompleter:
 		self.search.x = view_width/2 - self.search.width/2
 		self.search.y = view_height/3 - self.search.height/2
 		self.search.border_width = 1
-		self.dropDown.height = 35 * 10 #len(self.items.keys())
+		#self.dropDown.height = 35 * len(self.items.keys())
 		self.dropDown.width = 200
 		self.dropDown.x = 50
 		self.dropDown.y = 50

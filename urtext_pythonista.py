@@ -154,8 +154,8 @@ class MainView(ui.View):
 		insert_backtick_button = ui.Button(title='`')
 		insert_backtick_button.action = self.insert_backtick
 
-		search_all_project = ui.Button(title='*')
-		search_all_project.action = self.search_all_project
+		search_all_projects = ui.Button(title='*')
+		search_all_projects.action = self.search_all_projects
 
 		# browse_history_button = ui.Button(title='g')
 		# browse_history_button.action = self.browse_history
@@ -199,7 +199,7 @@ class MainView(ui.View):
 			insert_dynamic_def_button,
 			insert_pipe_button,
 			insert_backtick_button,
-			search_all_project,
+			search_all_projects,
 			hide_keyboard_button,
 			keywords_button,
 			free_associate_button,
@@ -262,11 +262,10 @@ class MainView(ui.View):
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
 
-	def search_all_project(self, sender):
-		title_autocompleter = TitleAutoCompleter(items=self._UrtextProjectList.titles())
-		title_autocompleter.action = title_autocompleter.open_node
-		title_autocompleter.titles = self._UrtextProjectList.titles()
-		self.show_search_and_dropdown()
+	def search_all_projects(self, sender):
+		self.autoCompleter.set_items(items=self._UrtextProjectList.titles())
+		self.autoCompleter.set_action(self.open_node)
+		self.autoCompleter.show()
 
 	def insert_dynamic_def(self,sender):
 		# broken right now
@@ -302,6 +301,7 @@ class MainView(ui.View):
 		self.tv.replace_range(self.tv.selected_range, '@'+new_id)
 
 	def move_file(self, sender):
+
 		self.project_list.items = self._UrtextProjectList.project_titles()
 		self.project_list.action = self.execute_move_file
 		self.project_selector.height = 35*len(self.project_list.items)
@@ -617,30 +617,46 @@ class MainView(ui.View):
 				self.refresh_open_file_if_modified(future)
 			console.hud_alert('Tagged Done','success',0.5)
 
-	def meta_autocomplete(self, sender): #works		
-		meta_autocompleter = MetaAutoCompleter(self, self.tv, items=[])
-		self.dropDown.delegate = meta_autocompleter
-		self.dropDown.data_source = meta_autocompleter	
-		self.show_search_and_dropdown()
+	def meta_autocomplete(self, sender): #works	
+		self.autoCompleter.set_items(self._UrtextProjectList.get_all_meta_pairs())
+		self.autoCompleter.set_action(self.insert_meta)
+		self.autoCompleter.show()	
 
 	def search_node_title(self, sender):
 		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
 		self.autoCompleter.set_action(self.open_node)
 		self.autoCompleter.show()
 
-	def link_to_node(self, sender):
-		title_autocompleter = TitleAutoCompleter(items=self._UrtextProjectList.current_project.titles())
-		title_autocompleter.action = title_autocompleter.link_to_node
-		self.show_search_and_dropdown()
+	def insert_meta(self, text):
+		self.tv.replace_range(
+			self.tv.selected_range, 
+			text + '; ')
 
-	def link_to_new_node(self, sender):
+	def link_to_node(self, sender):
+		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
+		self.autoCompleter.set_actino(self.insert_link_to_node)
+		self.autoCompleter.show()
+
+	def insert_link_to_node(self, title):
+		# could be refactored into Urtext library
+		link = main_view._UrtextProjectList.build_contextual_link(title)
+		self.tv.replace_range(self.tv.selected_range, link)
+
+	def link_to_new_node(self, title):
 		path = self._UrtextProjectList.current_project.path
 		new_node = self._UrtextProjectList.current_project.new_file_node()
-		self.tv.replace_range(self.tv.selected_range, '| >'+ new_node['id'])
+		self.tv.replace_range(self.tv.selected_range, '| '+ new_node['id'] + '>' )
 
-	def point_to_node(self, sender):
-		self.title_autocompleter.action = self.title_autocompleter.point_to_node
-		self.show_search_and_dropdown()
+	def point_to_node(self, title):
+		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
+		self.autoCompleter.set_action(self.insert_pointer_to_node)
+		self.autoCompleter.show()
+
+	def insert_pointer_to_node(self, sender):
+		link = main_view._UrtextProjectList.build_contextual_link(
+			title,
+			pointer=True) 
+		self.tv.replace_range(self.tv.selected_range, link)
 
 	def nav_back(self, sender):
 		last_node = self._UrtextProjectList.nav_reverse()
@@ -648,7 +664,6 @@ class MainView(ui.View):
 			self.open_node(last_node, add_to_nav=False)
 
 	def nav_forward(self, sender):
-
 		next_node = self._UrtextProjectList.nav_advance()
 		if next_node:
 			self.open_node(next_node, add_to_nav=False)
@@ -699,12 +714,25 @@ class MainView(ui.View):
 		return position
 
 	def search_keywords(self, sender):
-		keyword_autocompleter = KeywordAutoCompleter(self, items=[])
-		keyword_autocompleter.action = keyword_autocompleter.optionWasSelected     
-		self.dropDown.delegate = keyword_autocompleter
-		self.dropDown.data_source = keyword_autocompleter	
-		self.search.delegate = keyword_autocompleter
-		self.show_search_and_dropdown()
+		self.autoCompleter.set_items(
+			self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_keywords())
+		self.autoCompleter.set_action(self.select_nodes_from_keywords)     		
+		self.autoCompleter.show()
+
+	def select_nodes_from_keywords(self, selected_keyword):
+		selections = self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_by_keyword(selected_keyword)		
+		if len(selections) == 1:
+			print('only one chosen')
+			print(selections)
+			self.tv.begin_editing()
+			return self.open_node(selections[0])
+		else:
+			print('reopening auto completer with')
+			print(selections)
+			self.autoCompleter.hide()
+			self.autoCompleter.set_items(selections)
+			self.autoCompleter.set_action(self.open_node)
+			self.autoCompleter.show()
 
 	def free_associate(self, sender):
 		full_line, col_pos = get_full_line(self.tv.selected_range[0], self.tv)
