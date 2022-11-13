@@ -13,13 +13,16 @@ class AutoCompleter:
 		self.dropDown.delegate = SearchFieldDelegate()
 		self.dropDown.delegate.tableview_did_select = self.tableview_did_select
 		self.dropDown.hidden = True
+		self.dropDown.data_source = ui.ListDataSource([])
 		self.size_fields(view_width, view_height)
 
 	def textfield_did_change(self, textfield):
-		entry = textfield.text.lower()
+		entry = textfield.text
 		fuzzy_options = sorted(
 			self.items,
-			key =lambda option: fuzz.ratio(entry, option), 
+			key =lambda option: fuzz.ratio(
+				entry.lower(), 
+				option.lower()), 
 			reverse=True)
 		self.dropDown.data_source.items=fuzzy_options[:30]
 
@@ -39,10 +42,12 @@ class AutoCompleter:
 
 	def set_items(self, items):
 		if isinstance(items, dict):
-			self.items = items.keys()
+			self.items = list(items.keys())
 		if isinstance(items, list):
 			self.items = items
-		self.dropDown.data_source = ui.ListDataSource(items=self.items)
+		self.dropDown.data_source.items = self.items[:30]
+
+		#self.dropDown.data_source = ui.ListDataSource(items=self.items)
 
 	def show(self):
 		self.search.hidden = False
