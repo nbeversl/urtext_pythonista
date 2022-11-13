@@ -17,8 +17,7 @@ class TextViewDelegate(object):
 	def textview_did_change_selection(self, textview):
 	# 	""" Hide all popups when clicking in the text editor """
 
-		self.main_view.autoCompleter.search.hidden = True
-		self.main_view.autoCompleter.dropDown.hidden = True
+		self.main_view.autoCompleter.hide()
 		self.main_view.menu_list.hidden = True
 		if not self.main_view.updating_history:
 			self.main_view.history_view.hidden = True
@@ -27,5 +26,7 @@ class TextViewDelegate(object):
 	# 	""" Hide all popups when clicking in the text editor """
 
 		self.main_view.autoCompleter.hide()
+		if not self.main_view.updating_history:
+			self.main_view.history_view.hidden = True
 		if not self.main_view.updating_history:
 			self.main_view.history_view.hidden = True

@@ -32,7 +32,7 @@ font = {
     'size' : 12
 } 
 
-colors = {
+patterns = {
 
     # dynamic definition 
     r'\[\[.*?\]\]': {                                                     
@@ -89,7 +89,7 @@ colors = {
         'self':green
         },                             
 
-     # error messages
+    # error messages
     r'<!{2}.*?!{2}>\n?' : {
       'self' :UIColor.redColor(),
     },
@@ -104,6 +104,20 @@ colors = {
      r'(?<={)([^\n{_]*?(?= _\b))|(^[^\n_{]*?(?= _\b))':{ 
         'self':'bold',
         },
+
+    # node wrapper:
+    r'\{' : {
+        'type' : 'push',
+        'pop' : r'\}',
+    },   
+
+    # compact wrapper:
+    r'•' : {
+        'type' : 'push',
+        'pop' : r'\n'
+    },
+
 }
 
-wrappers = re.compile(r'(\{|\}|^[^\S\n]*?\^|\n)')
+
+

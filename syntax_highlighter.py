@@ -1,5 +1,5 @@
 from objc_util import *
-from syntax import colors, wrapper_colors
+from syntax import patterns
 import re
 
 green = UIColor.colorWithRed(0.44, green=0.84, blue=0.42, alpha=1.0)
@@ -36,78 +36,78 @@ font_settings = {
 font_reg = ObjCClass('UIFont').fontWithName_size_(font_settings['name'], font_settings['size'])
 font_bold = ObjCClass('UIFont').fontWithName_size_(font_settings['bold'], font_settings['size'])
 
+def find_wrappers(string, wrappers):
+   found_wrappers = {}
+   for w in wrappers:
+       s = re.finditer(w, string)
+       for item in s:
+         found_wrappers[item.start()] = w.pattern
+   return found_wrappers
+
 @on_main_thread
 def setAttribs(tv, tvo, initial=False):
 
-   file_position = tv.selected_range
-   mystr = tv.text
-   mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
-   original_mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)  
-   mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), font_reg, NSRange(0,len(mystr)))
-   mystro.addAttribute_value_range_(
+    file_position = tv.selected_range
+    mystr = tv.text
+    mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)
+    original_mystro = ObjCClass('NSMutableAttributedString').alloc().initWithString_(mystr)  
+    mystro.addAttribute_value_range_(ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), font_reg, NSRange(0,len(mystr)))
+    mystro.addAttribute_value_range_(
         ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')), 
         grey5, 
         NSRange(0,len(mystr)))
-   nested_level = 0
 
-   wrappers = find_wrappers(mystr)
-   
-   if wrappers:
-    compact_node_open = False
-    positions = sorted(wrappers.keys())
-    for index in range(len(positions)):
-        position = positions[index]
+    nested_level = 0
+    push_wrappers = [re.compile(p, flags=re.MULTILINE) for p in patterns if 'type' in patterns[p] and patterns[p]['type'] == 'push']
+    push_wrappers_plain = [p for p in patterns if 'type' in patterns[p] and patterns[p]['type'] == 'push']
 
-        if wrappers[position] == '\n':
-            compact_node_open = False
-            continue
+    if push_wrappers:
+        pop_wrappers = [re.compile(patterns[p]['pop'], flags=re.MULTILINE) for p in patterns if 'pop' in patterns[p]]
+        pop_wrappers_plain = [patterns[p]['pop'] for p in patterns if 'pop' in patterns[p]]
 
-        if wrappers[position] == '{' :
-            nested_level += 1 
-            if nested_level < len(wrapper_colors):
-	            mystro.addAttribute_value_range_(
-	              ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
-	              wrapper_colors[nested_level],
-	              NSRange(position,1))
-        
-        if wrappers[position] == '^[^\S\n]*?\\^':        
-            nested_level += 1
-            compact_node_open = True
+        all_wrappers = push_wrappers
+        all_wrappers.extend(pop_wrappers)
+        found_wrappers = find_wrappers(mystr, all_wrappers)
+        looking_for_pop = False
+        pop_wrapper = ''
+        positions = sorted(found_wrappers.keys())
+        for index in range(len(positions)):
+            position = positions[index]
+            if found_wrappers[position] in push_wrappers_plain:
+                nested_level += 1
+                if nested_level < len(wrapper_colors):
+                    mystro.addAttribute_value_range_(
+                      ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
+                      wrapper_colors[nested_level],
+                      NSRange(position,1))
+                pop_wrapper = patterns[found_wrappers[position]]['pop']
+                continue
+            if found_wrappers[position] == pop_wrapper:
+                if nested_level < len(wrapper_colors):
+                    mystro.addAttribute_value_range_(
+                      ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
+                      wrapper_colors[nested_level],
+                      NSRange(position,1))
+                nested_level -= 1
 
-        if wrappers[position] == '}' and len(wrapper_colors) >= nested_level:           
-            if nested_level < len(wrapper_colors):
-	            mystro.addAttribute_value_range_(
-	              ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
-	              wrapper_colors[nested_level], #grey5, #
-	              NSRange(position,1))
-            nested_level -= 1
-
-        # If this is not the last closing wrapper:
-        if position < positions[-1]:
-            if compact_node_open:
-              compact_node_open = False
-              nested_level -=1
-
-   nest_colors(mystro, mystr, 0, colors)
-   if initial or (mystro != original_mystro):
+    nest_colors(mystro, mystr, 0, patterns)
+    if initial or (mystro != original_mystro):
       tvo.setAllowsEditingTextAttributes_(True)
       tvo.setAttributedText_(mystro)
 
-def find_wrappers(string):
-   found_wrappers = {}
-   s = re.finditer( r'(\{|\}|^[^\S\n]*?\^|\n)', string, flags=re.MULTILINE)
-   for item in s:
-     found_wrappers[item.start()] = item.group()
-   return found_wrappers
-
-def nest_colors(mystro, mystr, offset, colors):
- 
-   for pattern in colors:
+def nest_colors(mystro, mystr, offset, patterns):
+    
+    for pattern in patterns:
+        if 'type' in patterns[pattern]:
+            continue # already done
+        
         flags = re.DOTALL
-        if 'flags' in colors[pattern]:
-          flags = colors[pattern]['flags']
+        if 'flags' in patterns[pattern]:
+          flags = patterns[pattern]['flags']
+
         sre = re.finditer(pattern, mystr, flags=flags)
-        color = colors[pattern]['self']
+        color = patterns[pattern]['self']
+
         for m in sre:
             start, end = m.span()
             length = end-start
@@ -123,7 +123,7 @@ def nest_colors(mystro, mystr, offset, colors):
                 NSRange(start+offset,length)
               )            
             
-            if 'inside' in colors[pattern]:
+            if 'inside' in patterns[pattern]:
                 substring = mystr[start:end]
-                for nested_item in colors[pattern]['inside']:
+                for nested_item in patterns[pattern]['inside']:
                     nest_colors(mystro, substring, start, nested_item)
