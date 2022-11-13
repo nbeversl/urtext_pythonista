@@ -15,3 +15,12 @@ def browse_history(self, sender):
 	self.history_view.height = 160     # 4 cels high
 	self.history_view.hidden = False
 	self.history_view.bring_to_front()
+
+# class HistoryView(object):
+
+# 	def tableview_did_select(self, tableview, section, row):
+# 		state = main_view._UrtextProjectList.current_project.apply_patches(main_view.current_file_history, distance_back=row)
+# 		main_view.updating_history = True
+# 		main_view.tv.text = state
+# 		on_main_thread(syntax_highlighter.setAttribs, main_view.tv, main_view.tvo)
+# 		main_view.updating_history = False

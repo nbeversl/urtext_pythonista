@@ -2,18 +2,16 @@ from urtext.project_list import ProjectList
 from urtext.project import soft_match_compact_node
 import os
 import datetime
+import time
 import ui
 import dialogs
 import re
-import math
 import console
 import webbrowser
 from app_single_launch import AppSingleLaunch
 import concurrent.futures
-from thefuzz import fuzz
 from objc_util import *
 import syntax_highlighter
-import platform
 import clipboard
 from auto_completer import AutoCompleter
 from text_view_delegate import TextViewDelegate
@@ -555,11 +553,13 @@ class MainView(ui.View):
 			if self._UrtextProjectList.current_project.compiled:
 				console.hud_alert('No home node for this project','error',0.5)
 			else:
-				console.hud_alert('Project is still compiling','error',0.5)				
+				console.hud_alert('Home node will open when found','error',0.5)				
+				self.executor.submit(self.open_home_when_found, None)
 
 	def open_home_when_found(self, sender):
 		while not self._UrtextProjectList.current_project.get_home():
 			if not self._UrtextProjectList.current_project.compiled:
+				time.sleep(.5)
 				continue
 			else:
 				console.hud_alert('Project compiled. No home node for this project','error',0.5)
@@ -748,15 +748,6 @@ class MainView(ui.View):
 		self.title_autocompleter.titles = titles
 		self.show_search_and_dropdown()
 
-# class HistoryView(object):
-
-# 	def tableview_did_select(self, tableview, section, row):
-# 		state = main_view._UrtextProjectList.current_project.apply_patches(main_view.current_file_history, distance_back=row)
-# 		main_view.updating_history = True
-# 		main_view.tv.text = state
-# 		on_main_thread(syntax_highlighter.setAttribs, main_view.tv, main_view.tvo)
-# 		main_view.updating_history = False
-
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
 	total_length = 0
@@ -769,13 +760,13 @@ def get_full_line(position, tv):
 
 def launch_urtext_pythonista(args):
 
+	global app
+
 	if 'path' not in args or not args['path']:
 		return None
 
 	urtext_project_path = args['path']
 
-	global app
-	global main_view
 
 	#https://forum.omz-software.com/search/set_idle_timer_disabled?in=titlesposts
 	#on_main_thread(console.set_idle_timer_disabled)(True)
@@ -791,7 +782,6 @@ def launch_urtext_pythonista(args):
 			initial_project=initial_project)
 
 		app.will_present(main_view)
-		# main_view.executor.submit(main_view.open_home_when_found, None)
 		main_view.present('fullscreen', hide_title_bar=True)
 		main_view.display_welcome(None)
 		main_view.tv.begin_editing()
