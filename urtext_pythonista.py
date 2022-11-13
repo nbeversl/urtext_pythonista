@@ -625,7 +625,7 @@ class MainView(ui.View):
 
 	def search_node_title(self, sender):
 		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
-		# self.autoCompleter.set_action(self.open_node)
+		self.autoCompleter.set_action(self.open_node)
 		self.autoCompleter.show()
 
 	def link_to_node(self, sender):

@@ -16,7 +16,6 @@ class AutoCompleter:
 		self.size_fields(view_width, view_height)
 
 	def textfield_did_change(self, textfield):
-
 		entry = textfield.text.lower()
 		matches = []
 		for title in self.items.keys():
@@ -29,7 +28,7 @@ class AutoCompleter:
 			reverse=True)
 
 		matches.extend(fuzzy_options)
-		self.dropDown.data_source.items= matches[:30]
+		self.dropDown.data_source.items=matches[:30]
 
 	def tableview_did_select(self, tableview, section, row):
 		self.search.text = self.dropDown.data_source.items[row]   
@@ -45,22 +44,21 @@ class AutoCompleter:
 		self.search.text=''
 		self.dropDown.hidden = False
 		self.dropDown.bring_to_front()
-		
-		# self.dropDown.x = self.search.x
-		# self.dropDown.y = self.search.y + self.search.height
-		# self.dropDown.width = self.search.width
-		# self.dropDown.row_height = self.search.height
+		self.dropDown.x = self.search.x
+		self.dropDown.y = self.search.y + self.search.height
+		self.dropDown.width = self.search.width
+		self.dropDown.row_height = self.search.height
 		self.search.begin_editing()
 
+	def set_action(self, action):
+		self.dropDown.delegate.action = action
 
 	def size_fields(self, view_width, view_height):
 		self.search.height = 40
 		self.search.width = view_width * 0.8
 		self.search.x = view_width/2 - self.search.width/2
 		self.search.y = view_height/3 - self.search.height/2
-		field.border_width = 1
-
-
+		self.search.border_width = 1
 		self.dropDown.height = 35 * 10 #len(self.items.keys())
 		self.dropDown.width = 200
 		self.dropDown.x = 50
