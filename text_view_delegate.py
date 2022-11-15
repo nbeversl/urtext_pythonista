@@ -11,7 +11,6 @@ class TextViewDelegate(object):
 		self.main_view.saved = False
 		now = time.time()
 		if now - self.time > .5:
-			# return #TODO bug is here 
 			self.main_view.refresh_file()   
 		self.time = time.time()
 		

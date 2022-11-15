@@ -452,27 +452,30 @@ class MainView(ui.View):
 			contents=d.read()
 
 		# TODO: Might cause ObjC crash ?
-		self.tv.scroll_enabled = False
-		file_position = self.tv.selected_range[0]
-		selected_range = self.tvo.selectedRange()
-
-		self.current_open_file = filename
-		self.current_open_file_hash = hash(contents)
+		if filename == self.current_open_file:
+			self.tv.scroll_enabled = False
+			file_position = self.tv.selected_range[0]
+			selected_range = self.tvo.selectedRange()
+		
 		self.tv.text=contents
+
 		if self._UrtextProjectList.current_project.is_async:
 			self.executor.submit(self.refresh_open_file_if_modified, future)
 		else:
 			self.refresh_open_file_if_modified(future)
-		self.tvo.scrollRangeToVisible(selected_range) 
-		syntax_highlighter.setAttribs(self.tv, self.tvo)
+		self.refresh_file()
 
 		if filename == self.current_open_file:
 			try: 
+				self.tvo.scrollRangeToVisible(selected_range)
 				self.tv.selected_range = (file_position, file_position)
 			except ValueError:
 				pass
 
-		self.tv.scroll_enabled = True
+		self.current_open_file = filename
+		self.current_open_file_hash = hash(contents)
+
+		# self.tv.scroll_enabled = True
 		return True
 
 	def timestamp(self, sender):
@@ -489,7 +492,7 @@ class MainView(ui.View):
 		file_pos = self.tv.selected_range[0] 
 		line, col_pos = get_full_line(file_pos, self.tv)
 		link = self._UrtextProjectList.get_link_and_set_project(
-			line, 
+			line,
 			filename, 
 			col_pos=col_pos,
 			file_pos=file_pos)
@@ -588,8 +591,7 @@ class MainView(ui.View):
 		if os.path.join(self._UrtextProjectList.current_project.path, filename) != self.current_open_file:
 			self.open_file(filename)
 		
-		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
-		self.tv.begin_editing()
+		# self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 		self.tv.selected_range = (position, position)
 		
 	def new_node(self, sender):        
