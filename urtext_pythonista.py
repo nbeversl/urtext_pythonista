@@ -432,16 +432,8 @@ class MainView(ui.View):
 			self.open_file(self.current_open_file, save_first=False)
 			
 	def refresh_file(self, text=''):   
-		position = self.tv.selected_range
-		self.tv.scroll_enabled= False     
 		syntax_highlighter.setAttribs(self.tv, self.tvo)
-		self.tv.scroll_enabled= True
-		#return # debug TODO
-		try:
-			self.tv.selected_range = position
-		except ValueError:
-			pass
-
+		
 	def open_file(self, filename, save_first=True):
 		"""
 		Receives a basename.
