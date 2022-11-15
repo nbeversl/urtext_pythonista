@@ -109,12 +109,6 @@ patterns = {
     r'\{' : {
         'type' : 'push',
         'pop' : r'\}',
-    },   
-
-    # compact wrapper:
-    r'•' : {
-        'type' : 'push',
-        'pop' : r'\n'
     },
 
 }

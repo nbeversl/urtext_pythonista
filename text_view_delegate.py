@@ -11,11 +11,13 @@ class TextViewDelegate(object):
 		self.main_view.saved = False
 		now = time.time()
 		if now - self.time > .5:
+			# return #TODO bug is here 
 			self.main_view.refresh_file()   
 		self.time = time.time()
 		
 	def textview_did_change_selection(self, textview):
 	# 	""" Hide all popups when clicking in the text editor """
+		
 
 		self.main_view.autoCompleter.hide()
 		self.main_view.menu_list.hidden = True

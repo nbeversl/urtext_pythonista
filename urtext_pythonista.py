@@ -436,6 +436,7 @@ class MainView(ui.View):
 		self.tv.scroll_enabled= False     
 		syntax_highlighter.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
+		#return # debug TODO
 		try:
 			self.tv.selected_range = position
 		except ValueError:
