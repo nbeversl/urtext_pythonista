@@ -24,3 +24,12 @@ def browse_history(self, sender):
 # 		main_view.tv.text = state
 # 		on_main_thread(syntax_highlighter.setAttribs, main_view.tv, main_view.tvo)
 # 		main_view.updating_history = False
+
+# History:
+self.current_file_history = None 
+self.history_stamps = ui.ListDataSource(items=[])
+self.history_view = ui.TableView()
+self.history_view.hidden = True
+# history_viewer = HistoryView()
+# self.history_view.delegate = history_viewer
+# self.history_view.data_source = self.history_stamps

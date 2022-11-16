@@ -27,6 +27,7 @@ class MainView(ui.View):
 	def __init__(self, 
 		urtext_project_path,  
 		app: AppSingleLaunch,
+		buttons=[],
 		initial_project=None):
 		
 		self.app = app
@@ -41,7 +42,6 @@ class MainView(ui.View):
 		self.saved = None
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
-		self.refreshing = False
 		self.open_home_button_pressed = False
 
 		"""
@@ -60,16 +60,6 @@ class MainView(ui.View):
 		self.tv.frame=(0,32,w,h)
 		self.tv.auto_content_inset = True
 		self.tv.background_color = '#e5dddc'
-			
-		# History:
-		self.current_file_history = None 
-		self.history_stamps = ui.ListDataSource(items=[])
-		self.history_view = ui.TableView()
-		self.history_view.hidden = True
-		# history_viewer = HistoryView()
-		# self.history_view.delegate = history_viewer
-		# self.history_view.data_source = self.history_stamps
-
 
 		# Pop Up Urtext Features Menu
 		menu_options = ui.ListDataSource(items=[
@@ -93,7 +83,6 @@ class MainView(ui.View):
 		self.menu_list.x = self.tv.width/2 - self.menu_list.width/2
 		self.menu_list.y = self.tv.height/3 - self.menu_list.height/2
 		self.menu_list.border_width = 1
-
 		self.tv.width = w
 		
 		buttons = {
@@ -155,7 +144,6 @@ class MainView(ui.View):
 		self.add_subview(self.tv)
 		self.add_subview(button_line)
 		self.add_subview(self.menu_list)
-		self.add_subview(self.history_view)
 
 		self.tvo = ObjCInstance(self.tv)
 		# Set up the button row as input accessory
@@ -173,6 +161,7 @@ class MainView(ui.View):
 		else:
 			welcome_text += "No initial project was loaded."
 		self.tv.text = welcome_text
+		self.refresh_file()
 
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
@@ -667,20 +656,17 @@ def launch_urtext_pythonista(args):
 
 	urtext_project_path = args['path']
 
-
 	#https://forum.omz-software.com/search/set_idle_timer_disabled?in=titlesposts
 	#on_main_thread(console.set_idle_timer_disabled)(True)
 
 	print ('Urtext is loading '+urtext_project_path)
 	app = AppSingleLaunch("Pythonisa Urtext")
 	if not app.is_active():
-
 		initial_project = args['initial'] if 'initial' in args else None
 		main_view = MainView(
 			urtext_project_path, 
 			app, 
 			initial_project=initial_project)
-
 		app.will_present(main_view)
 		main_view.present('fullscreen', hide_title_bar=True)
 		main_view.display_welcome(None)
