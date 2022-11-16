@@ -95,140 +95,56 @@ class MainView(ui.View):
 
 		self.tv.width = w
 		
-		"""
-		Buttons 
-		"""
-		menu_button = ui.Button(title="M")
-		menu_button.action = self.show_menu
-		
-		switch_project_button = ui.Button(title="o")
-		switch_project_button.action = self.select_project
+		buttons = {
+			'M' : self.show_menu,
+			'o' : self.select_project,
+			'>' : self.nav_forward,
+			'<' : self.nav_back,
+			'h' : self.open_home,
+			'/' : self.open_link,
+			';' : self.new_node,
+			'S' : self.manual_save,
+			'{' : self.new_inline_node,
+			'D' : self.tag_from_other,
+			'::': self.meta_autocomplete,
+			't' : self.timestamp,
+			'<..>' : self.manual_timestamp,
+			'•' : self.compact_node,
+			'?' : self.search_node_title,
+			'[' : self.insert_dynamic_def,
+			'`' : self.insert_backtick,
+			'*' : self.search_all_projects,
+			'c' : self.copy_link_to_current_node,
+			'^c': self.copy_link_to_current_node_with_project,
+			'↓' : self.hide_keyboard,
+			'k' : self.search_keywords,
+			'^' : self.free_associate,
+			'| >': self.link_to_new_node
+		}
 
-		forward_button = ui.Button(title=">")
-		forward_button.action=self.nav_forward
-
-		back_button = ui.Button(title='<')
-		back_button.action=self.nav_back
-
-		home_button=ui.Button(title='h')
-		home_button.action=self.open_home
-
-		open_link_button=ui.Button(title="/")
-		open_link_button.action = self.open_link
-
-		new_node_button = ui.Button(title=';')
-		new_node_button.action = self.new_node
-
-		save_button = ui.Button(title='S')
-		save_button.action = self.manual_save
-
-		new_inline_node_button = ui.Button(title='{')
-		new_inline_node_button.action = self.new_inline_node
-		
-		tag_from_other_button = ui.Button(title='D')
-		tag_from_other_button.action = self.tag_from_other
-
-		insert_tag_button = ui.Button(title='::')
-		insert_tag_button.action = self.meta_autocomplete
-
-		timestamp_button = ui.Button(title='t')
-		timestamp_button.action = self.timestamp
-
-		manual_timestamp_button = ui.Button(title='<..>')
-		manual_timestamp_button.action = self.manual_timestamp
-
-		compact_node_button = ui.Button(title='•')
-		compact_node_button.action = self.compact_node
-
-		search_by_title = ui.Button(title='?')
-		search_by_title.action = self.search_node_title
-
-		insert_dynamic_def_button = ui.Button(title='[')
-		insert_dynamic_def_button.action = self.insert_dynamic_def
-
-		insert_pipe_button = ui.Button(title='|')
-		insert_pipe_button.action = self.insert_pipe
-
-		insert_backtick_button = ui.Button(title='`')
-		insert_backtick_button.action = self.insert_backtick
-
-		search_all_projects = ui.Button(title='*')
-		search_all_projects.action = self.search_all_projects
-
-		# browse_history_button = ui.Button(title='g')
-		# browse_history_button.action = self.browse_history
-
-		copy_link_to_current_node_button = ui.Button(title='c')
-		copy_link_to_current_node_button.action = self.copy_link_to_current_node
-
-		copy_link_to_current_node_with_project_button = ui.Button(title='^c')
-		copy_link_to_current_node_with_project_button.action = self.copy_link_to_current_node_with_project
-
-		hide_keyboard_button = ui.Button(title='↓')
-		hide_keyboard_button.action = self.hide_keyboard
-
-		keywords_button = ui.Button(title='k')
-		keywords_button.action=self.search_keywords
-
-		free_associate_button = ui.Button(title='^')
-		free_associate_button.action=self.free_associate
-
-		link_to_new_node_button = ui.Button(title='| >')
-		link_to_new_node_button.action=self.link_to_new_node
-
-		buttons = [  
-			open_link_button,
-			search_by_title,
-			new_node_button, 
-			insert_tag_button,
-			back_button,
-			forward_button,
-			home_button,
-			menu_button,
-			save_button,
-			compact_node_button,            
-			timestamp_button,
-			manual_timestamp_button,
-			new_inline_node_button,
-			copy_link_to_current_node_button,
-			copy_link_to_current_node_with_project_button,
-			switch_project_button,
-			tag_from_other_button,
-			insert_dynamic_def_button,
-			insert_pipe_button,
-			insert_backtick_button,
-			search_all_projects,
-			hide_keyboard_button,
-			keywords_button,
-			free_associate_button,
-			link_to_new_node_button
-			]
-
+		button_x_position = 0
+		button_y_position = 10
 		button_line = ui.View()
 		button_line.name = 'buttonLine'
 		button_line.background_color = '#e5dddc'
-		# button_line.flex = "HWLR"
 	
-		"""
-		Size the buttons
-		"""
-		button_x_position = 0
-		button_y_position = 10
+		for button_character in buttons:
+			new_button = ui.Button(title=button_character)
+			new_button.action=buttons[button_character]
 
-		for button in buttons:
-			button.corner_radius = 4
+			new_button.corner_radius = 4
 			if button_x_position >= w :
 				button_y_position += 55
 				button_x_position = 0
-			button.frame = (button_x_position, 
+			new_button.frame = (button_x_position, 
 				button_y_position, 
 				button_width, 
 				button_height)
-			button_line.add_subview(button)
+			button_line.add_subview(new_button)
 			button_x_position += button_width + 3
-			button.border_width = 1
-			button.border_color = button_border_color
-			button.background_color = "#ffffff"
+			new_button.border_width = 1
+			new_button.border_color = button_border_color
+			new_button.background_color = "#ffffff"
 
 		button_line.height = button_line.height + 5 # add margin
 
@@ -271,9 +187,6 @@ class MainView(ui.View):
 		position = self.tv.selected_range[0]
 		self.tv.replace_range(self.tv.selected_range, '\n\n[[ ID(>' + node_id + ')\n+( ) +( )\n-( ) -( )\n ]]')
 		self.tv.selected_range = (position + 12, position + 12)
-		
-	def insert_pipe(self, sender):
-		self.tv.replace_range(self.tv.selected_range, '|')
 
 	def insert_backtick(self, sender):
 		self.tv.replace_range(self.tv.selected_range, '`')
@@ -450,32 +363,9 @@ class MainView(ui.View):
 		future = self._UrtextProjectList.visit_file(f)
 		with open(f,'r', encoding='utf-8') as d:
 			contents=d.read()
-
-		# TODO: Might cause ObjC crash ?
-		if filename == self.current_open_file:
-			self.tv.scroll_enabled = False
-			file_position = self.tv.selected_range[0]
-			selected_range = self.tvo.selectedRange()
-		
 		self.tv.text=contents
-
-		if self._UrtextProjectList.current_project.is_async:
-			self.executor.submit(self.refresh_open_file_if_modified, future)
-		else:
-			self.refresh_open_file_if_modified(future)
-		self.refresh_file()
-
-		if filename == self.current_open_file:
-			try: 
-				self.tvo.scrollRangeToVisible(selected_range)
-				self.tv.selected_range = (file_position, file_position)
-			except ValueError:
-				pass
-
 		self.current_open_file = filename
 		self.current_open_file_hash = hash(contents)
-
-		# self.tv.scroll_enabled = True
 		return True
 
 	def timestamp(self, sender):
@@ -541,8 +431,9 @@ class MainView(ui.View):
 		return self.copy_link_to_current_node(None, include_project=True)
 
 	def open_home(self, sender):
-		home_id = self._UrtextProjectList.current_project.get_home()      
+		home_id = self._UrtextProjectList.current_project.get_home()
 		if home_id:
+
 			self._UrtextProjectList.nav_new(home_id)
 			self.open_node(home_id)
 		else:
@@ -568,31 +459,41 @@ class MainView(ui.View):
 		self.tv.selected_range = (selection[0]+1, selection[0]+1)
 
 	def open_node(self, 
-			node_id, 
+			node_id,
 			position=None,
 			add_to_nav=True # so method can be called without affecting nav
 			):
 
 		if node_id not in self._UrtextProjectList.current_project.nodes:
 			if  self._UrtextProjectList.current_project.compiled:
-				return console.hud_alert('Node '+node_id+' not in current project' ,'error',0.5)
+				return console.hud_alert(node_id+' not in current project' ,'error',1)
 			else:
-				return console.hud_alert('Project is still compiling' ,'error',0.5)
-			
-		if not position:
+				return console.hud_alert('Project is still compiling' ,'error',1)
+
+		if position ==  None:
 			position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
 		else:
 			position = int(position)
-		
+
+		filename = self._UrtextProjectList.current_project.nodes[node_id].filename
+
 		if add_to_nav:
 			self._UrtextProjectList.nav_new(node_id)
 
-		filename = self._UrtextProjectList.current_project.nodes[node_id].filename
-		if os.path.join(self._UrtextProjectList.current_project.path, filename) != self.current_open_file:
-			self.open_file(filename)
+		if filename == self.current_open_file:
+			self.tv.selected_range = (position, position)
+			self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
+			return
+
+		self.open_file(filename)
+		if self._UrtextProjectList.current_project.is_async:
+			self.executor.submit(self.refresh_open_file_if_modified, future)
+		else:
+			self.refresh_open_file_if_modified(future)
+		self.refresh_file()
 		
-		# self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 		self.tv.selected_range = (position, position)
+		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 		
 	def new_node(self, sender):        
 		new_node = self._UrtextProjectList.current_project.new_file_node()
