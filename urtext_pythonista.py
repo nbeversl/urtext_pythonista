@@ -361,13 +361,13 @@ class MainView(ui.View):
 		if save_first and self.current_open_file != filename:
 			self.save(None)
 
-		future = self._UrtextProjectList.visit_file(f)
+		changed_files = self._UrtextProjectList.visit_file(f)
 		with open(f,'r', encoding='utf-8') as d:
 			contents=d.read()
 		self.tv.text=contents
 		self.current_open_file = filename
 		self.current_open_file_hash = hash(contents)
-		return True
+		return changed_files
 
 	def timestamp(self, sender):
 
@@ -489,11 +489,11 @@ class MainView(ui.View):
 			self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 			return
 
-		self.open_file(filename)
+		changed_files = self.open_file(filename)
 		if self._UrtextProjectList.current_project.is_async:
-			self.executor.submit(self.refresh_open_file_if_modified, future)
+			self.executor.submit(self.refresh_open_file_if_modified, changed_files)
 		else:
-			self.refresh_open_file_if_modified(future)
+			self.refresh_open_file_if_modified(changed_files)
 		self.refresh_file()
 		
 		self.tv.selected_range = (position, position)
