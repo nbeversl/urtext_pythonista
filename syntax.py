@@ -32,16 +32,17 @@ font = {
     'size' : 12
 } 
 
+title_pattern = r"(([^>\n\r_])|(?<!\s)_)+"
 patterns = {
 
     # dynamic definition 
     r'\[\[.*?\]\]': {                                                     
         'self': grey6,       
         'inside' : [ 
-          { r'(\+|\-|INCLUDE|ID|HEADER|FOOTER|SHOW|COLLECT|EXCLUDE|EXPORT|LIMIT|SORT)(?=\(.*?\))' : { 'self':grey },
+          { r'(\+|\-|[A-Z]+)(?=\(.*?\))' : { 'self':grey },
             r'([\w]+)(?=\:)': { 'self':red },       # keys
             r'(?<=\:)([\w]+)' : { 'self' : unobtrusive }, # values, single-word
-            r'\b(-r|-t|reverse|preformat|multiline_meta|indent|timestamp|markdown|html|plaintext|source|recursive)\b' :
+            r'\b(-[a-z]+)\b' :
                   { 'self' : red },   # keywords
             r'([\w]+)\:("[\w\s]+")' : { 'self' : red}, # value strings (quotations)
             } 
@@ -69,7 +70,7 @@ patterns = {
     r'(?<=::)[^\n};@]+;?' : {
        'self': blue_brighter ,
       'inside': [
-          { '|' : { 'self': unobtrusive }  },
+          { '-' : { 'self': unobtrusive }  },
         ]
     },
 
@@ -81,7 +82,8 @@ patterns = {
 
     # Node Pointers
     r'([>]{2})(.+\b)':{
-        'self':grey5
+        'self':grey5,
+        'flags': 0
         },
 
     # timestamps
@@ -94,14 +96,14 @@ patterns = {
       'self' :UIColor.redColor(),
     },
     
-    #link titles
-    r'\|[^<][^\s].*?(?=>{1,2}[0-9,a-z]{3}\b[^\n]*?)': {  
+    #node link or pointer
+    r'(\|\s)' + title_pattern + '\s>{1,2}(?!>)': {  
         'self':grey5,
         'flags': 0
         },  
         
     #node titles
-     r'(?<={)([^\n{_]*?(?= _\b))|(^[^\n_{]*?(?= _\b))':{ 
+     r'(\|\s)'+ title_pattern : {
         'self':'bold',
         },
 
