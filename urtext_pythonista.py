@@ -42,6 +42,7 @@ class MainView(ui.View):
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.refreshing = False
+		self.open_home_button_pressed = False
 
 		"""
 		Build view components. 
@@ -431,17 +432,19 @@ class MainView(ui.View):
 		return self.copy_link_to_current_node(None, include_project=True)
 
 	def open_home(self, sender):
-		home_id = self._UrtextProjectList.current_project.get_home()
-		if home_id:
-
-			self._UrtextProjectList.nav_new(home_id)
-			self.open_node(home_id)
-		else:
-			if self._UrtextProjectList.current_project.compiled:
-				console.hud_alert('No home node for this project','error',0.5)
+		if not self.open_home_button_pressed:
+			self.open_home_button_pressed = True
+			home_id = self._UrtextProjectList.current_project.get_home()
+			if home_id:
+				self._UrtextProjectList.nav_new(home_id)
+				self.open_node(home_id)
 			else:
-				console.hud_alert('Home node will open when found','error',0.5)				
-				self.executor.submit(self.open_home_when_found, None)
+				if self._UrtextProjectList.current_project.compiled:
+					console.hud_alert('No home node for this project','error',0.5)
+					self.open_home_button_pressed = False
+				else:
+					console.hud_alert('Home node will open when found','error',0.5)				
+					self.executor.submit(self.open_home_when_found, None)
 
 	def open_home_when_found(self, sender):
 		while not self._UrtextProjectList.current_project.get_home():
@@ -452,6 +455,7 @@ class MainView(ui.View):
 				console.hud_alert('Project compiled. No home node for this project','error',0.5)
 		if not self.current_open_file: # only if another file has not been opened
 			self.open_home(None)
+		self.open_home_button_pressed = False
 
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
