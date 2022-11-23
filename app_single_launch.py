@@ -6,7 +6,6 @@ from typing import Any
 
 import ui
 
-
 __all__ = [
     'AppSingleLaunch',
 ]

@@ -1,7 +1,6 @@
 from urtext.project_list import ProjectList
-from urtext.project import soft_match_compact_node
+from urtext.project import match_compact_node
 import os
-import datetime
 import time
 import ui
 import dialogs
@@ -13,79 +12,36 @@ import concurrent.futures
 from objc_util import *
 import syntax_highlighter
 import clipboard
+from editor import BaseEditor
 from auto_completer import AutoCompleter
 from text_view_delegate import TextViewDelegate
 
 app = None
 
-# Theme
-button_border_color = '#e3d9d8'
-###
-
-class MainView(ui.View):
+class UrtextEditor(BaseEditor):
 
 	def __init__(self, 
 		urtext_project_path,  
 		app: AppSingleLaunch,
-		buttons=[],
 		initial_project=None):
-		
-		self.app = app
+		super().__init__()
+
 		self.name = "Pythonista Urtext" 
 		self.urtext_project_path = urtext_project_path
 		self._UrtextProjectList = ProjectList(
 			urtext_project_path, 
 			initial_project=initial_project)
 		self.initial_project=initial_project
+		
 		self.current_open_file = None
 		self.current_open_file_hash = None
 		self.saved = None
+		self.buttons = {}
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.open_home_button_pressed = False
-
-		"""
-		Build view components. 
-		"""
-		button_height = 40
-		button_width = 27
 		
-		w,h = ui.get_screen_size()
-		self.height = h
-		self.width = w
-		self.frame= (0,32,w,h)
-
-		# main text (editor) view
-		self.tv = ui.TextView()
-		self.tv.frame=(0,32,w,h)
-		self.tv.auto_content_inset = True
-		self.tv.background_color = '#e5dddc'
-
-		# Pop Up Urtext Features Menu
-		menu_options = ui.ListDataSource(items=[
-			'Initialize New Project',  
-			'Move file to another project',
-			'Reload Projects',
-			'Delete Node',
-			'Show Project Timeline',          
-			'Link >',
-			'Point >>',
-			'Pop Node',
-		   ])
-		menu_options.action = self.delegate_menu
-
-		self.menu_list = ui.TableView()
-		self.menu_list.hidden = True
-		self.menu_list.delegate = menu_options
-		self.menu_list.data_source = menu_options
-		self.menu_list.height = 160
-		self.menu_list.width = self.tv.width*.80
-		self.menu_list.x = self.tv.width/2 - self.menu_list.width/2
-		self.menu_list.y = self.tv.height/3 - self.menu_list.height/2
-		self.menu_list.border_width = 1
-		self.tv.width = w
-		
-		buttons = {
+		self.setup_buttons({
 			'/' : self.open_link,
 			'?' : self.search_node_title,
 			'<' : self.nav_back,
@@ -95,7 +51,7 @@ class MainView(ui.View):
 			'S' : self.manual_save,
 			'{' : self.new_inline_node,
 			'::': self.meta_autocomplete,
-			'M' : self.show_menu,
+			'M' : self.main_menu,
 			'D' : self.tag_from_other,
 			't' : self.timestamp,
 			'<..>' : self.manual_timestamp,
@@ -110,48 +66,20 @@ class MainView(ui.View):
 			'k' : self.search_keywords,
 			'^' : self.free_associate,
 			'| >': self.link_to_new_node
-		}
+			})
 
-		button_x_position = 0
-		button_y_position = 10
-		button_line = ui.View()
-		button_line.name = 'buttonLine'
-		button_line.background_color = '#e5dddc'
-	
-		for button_character in buttons:
-			new_button = ui.Button(title=button_character)
-			new_button.action=buttons[button_character]
+		self.setup_autocomplete()
 
-			new_button.corner_radius = 4
-			if button_x_position >= w :
-				button_y_position += 55
-				button_x_position = 0
-			new_button.frame = (button_x_position, 
-				button_y_position, 
-				button_width, 
-				button_height)
-			button_line.add_subview(new_button)
-			button_x_position += button_width + 3
-			new_button.border_width = 1
-			new_button.border_color = button_border_color
-			new_button.background_color = "#ffffff"
-
-		button_line.height = button_line.height + 5 # add margin
-
-		self.autoCompleter = AutoCompleter(self.width, self.height)
-		self.add_subview(self.autoCompleter.search)
-		self.add_subview(self.autoCompleter.dropDown)
-		self.add_subview(self.tv)
-		self.add_subview(button_line)
-		self.add_subview(self.menu_list)
-
-		self.tvo = ObjCInstance(self.tv)
-		# Set up the button row as input accessory
-		btn_ln = ObjCInstance(button_line)
-		self.tvo.setInputAccessoryView_(btn_ln)
-		self.tv.delegate = TextViewDelegate(self)
-		self.tvo.setAllowsEditingTextAttributes_(True)	
-
+		self.menu_options  = {
+			'Initialize New Project' : self.init_new_project,
+			'Move file to another project' : self.move_file,
+			'Reload Projects' : self.reload_projects,
+			'Delete Node' : self.delete_node,
+			'Link >' : self.link_to_node,
+			'Point >>' : self.point_to_node,
+			'Pop Node' : self.pop_node
+		   }
+		
 	def display_welcome(self, sender):
 
 		welcome_text = "Welcome to Urtext.\n\n"
@@ -170,6 +98,14 @@ class MainView(ui.View):
 		self.autoCompleter.set_items(items=self._UrtextProjectList.titles())
 		self.autoCompleter.set_action(self.open_node)
 		self.autoCompleter.show()
+
+	def main_menu(self, sender):
+		self.autoCompleter.set_items(items=self.main_menu.keys())
+		self.autoCompleter.set_action(self.run_chosen_option)
+		self.autoCompleter.show()
+
+	def run_chosen_option(self, function):
+		self.main_view[function]()
 
 	def insert_dynamic_def(self,sender):
 		# broken right now
@@ -241,45 +177,6 @@ class MainView(ui.View):
 		path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
 		self._UrtextProjectList.init_new_project(path)
 
-	def delegate_menu(self, sender):
-		self.menu_list.hidden=True
-		
-		"""
-			0  'Initialize New Project', 
-			1 'Move file to another project',her project',
-			2 'Reload Projects',
-			3 'Delete Node',
-			4 'Link >',
-			5 'Point >>',
-			6 'Pop Node',
-		"""
-
-		if sender.selected_row == 0: # Initialize new project
-			self.textfield.action=self.init_new_project
-			self.textfield.bring_to_front()
-			self.textfield.hidden=False 
-
-		if sender.selected_row == 1:
-			self.move_file(None)
-
-		if sender.selected_row == 2:
-			self.reload_projects(None)
-
-		if sender.selected_row == 3: 
-			self.delete_node(None)
-
-		if sender.selected_row == 4:
-			self.link_to_node(None)
-
-		if sender.selected_row == 5:
-			self.point_to_node(None)
-
-		if sender.selected_row == 6:
-			self.pop_node(None)
-
-	def show_menu(self, option_list):
-		self.menu_list.hidden=False
-		self.menu_list.bring_to_front()
 
 	def select_project(self, sender): 
 
@@ -359,12 +256,9 @@ class MainView(ui.View):
 		return changed_files
 
 	def timestamp(self, sender):
-
-		now = datetime.datetime.now()
-		datestamp = self._UrtextProjectList.current_project.timestamp(now)
 		self.tv.replace_range(
 			self.tv.selected_range, 
-			datestamp)
+			self._UrtextProjectList.current_project.timestamp())
 
 	def open_link(self, sender):
 		
@@ -425,8 +319,8 @@ class MainView(ui.View):
 			self.open_home_button_pressed = True
 			home_id = self._UrtextProjectList.current_project.get_home()
 			if home_id:
-				self._UrtextProjectList.nav_new(home_id)
 				self.open_node(home_id)
+				self.open_home_button_pressed = False
 			else:
 				if self._UrtextProjectList.current_project.compiled:
 					console.hud_alert('No home node for this project','error',0.5)
@@ -512,7 +406,7 @@ class MainView(ui.View):
 		self.autoCompleter.show()	
 
 	def search_node_title(self, sender):
-		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
+		self.autoCompleter.set_items(self._UrtextProjectList.current_project.all_nodes())
 		self.autoCompleter.set_action(self.open_node)
 		self.autoCompleter.show()
 
@@ -522,7 +416,7 @@ class MainView(ui.View):
 			text + '; ')
 
 	def link_to_node(self, sender):
-		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
+		self.autoCompleter.set_items(self._UrtextProjectList.current_project.all_nodes())
 		self.autoCompleter.set_actino(self.insert_link_to_node)
 		self.autoCompleter.show()
 
@@ -537,7 +431,7 @@ class MainView(ui.View):
 		self.tv.replace_range(self.tv.selected_range, '| '+ new_node['id'] + '>' )
 
 	def point_to_node(self, title):
-		self.autoCompleter.set_items(self._UrtextProjectList.current_project.titles())
+		self.autoCompleter.set_items(self._UrtextProjectList.current_project.all_nodes())
 		self.autoCompleter.set_action(self.insert_pointer_to_node)
 		self.autoCompleter.show()
 
@@ -580,7 +474,7 @@ class MainView(ui.View):
 		end_of_line = self.find_end_of_line(selection[1])
 		line, col_pos = get_full_line(selection[1], self.tv)
 
-		if soft_match_compact_node(line):
+		if match_compact_node(line):
 			replace = False
 			contents = self._UrtextProjectList.current_project.add_compact_node()
 		else:
@@ -611,13 +505,9 @@ class MainView(ui.View):
 	def select_nodes_from_keywords(self, selected_keyword):
 		selections = self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_by_keyword(selected_keyword)		
 		if len(selections) == 1:
-			print('only one chosen')
-			print(selections)
 			self.tv.begin_editing()
 			return self.open_node(selections[0])
 		else:
-			print('reopening auto completer with')
-			print(selections)
 			self.autoCompleter.hide()
 			self.autoCompleter.set_items(selections)
 			self.autoCompleter.set_action(self.open_node)
@@ -663,7 +553,7 @@ def launch_urtext_pythonista(args):
 	app = AppSingleLaunch("Pythonisa Urtext")
 	if not app.is_active():
 		initial_project = args['initial'] if 'initial' in args else None
-		main_view = MainView(
+		main_view = UrtextEditor(
 			urtext_project_path, 
 			app, 
 			initial_project=initial_project)

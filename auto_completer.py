@@ -76,10 +76,7 @@ class AutoCompleter:
 		self.dropDown.x = 50
 		self.dropDown.y = 50
 
-
 class SearchFieldDelegate:
 	
 	def __init__(self):
 		pass
-		
-

@@ -18,9 +18,7 @@ class TextViewDelegate(object):
 	# 	""" Hide all popups when clicking in the text editor """
 
 		self.main_view.autoCompleter.hide()
-		self.main_view.menu_list.hidden = True
 
 	def textview_did_begin_editing(self, textview):
 	# 	""" Hide all popups when clicking in the text editor """
 		self.main_view.autoCompleter.hide()
-		self.main_view.menu_list.hidden = True
