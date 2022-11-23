@@ -3,7 +3,7 @@ from colors import colors
 theme = {   
     'dynamic_definition_wrapper' :  colors['grey6'],
     'background_color' :            colors['paper'],
-    'foreground_color' :            colros['grey5'],
+    'foreground_color' :            colors['grey5'],
     'function_names' :              colors['grey_reg'],
     'keys' :                        colors['red'],
     'values' :                      colors['blue_brighter'],

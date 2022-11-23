@@ -81,9 +81,12 @@ def nest_colors(mystro, mystr, offset, patterns):
 
         sre = re.finditer(pattern, mystr, flags=flags)
         font = None
+        color = None
         attribute = patterns[pattern]['self']
         if 'font' in attribute:
             font =  patterns[pattern]['self']['font']
+        if 'color' in attribute:
+            color = patterns[pattern]['self']['color']
 
         for m in sre:
             start, end = m.span()
@@ -92,12 +95,12 @@ def nest_colors(mystro, mystr, offset, patterns):
               mystro.addAttribute_value_range_(
                 ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), 
                 font, 
-                NSRange(start+offset,length))
-            else:
+                NSRange(start + offset,length))
+            if color:
               mystro.addAttribute_value_range_(
                 ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
-                attribute,
-                NSRange(start+offset,length)
+                color,
+                NSRange(start + offset,length)
               )            
             
             if 'inside' in patterns[pattern]:

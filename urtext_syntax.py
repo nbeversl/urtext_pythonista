@@ -71,8 +71,8 @@ patterns = {
 
     # metadata ::
     r'::' : { 
+    
         'self' : {
-
             'color' : theme['metadata_symbol'] 
             },
         },
