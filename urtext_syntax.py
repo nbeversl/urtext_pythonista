@@ -1,152 +1,111 @@
-from urtext.syntax import *
+import urtext.syntax as syntax
 from theme import theme
-import re
 
-title_pattern = r"(([^>\n\r_])|(?<!\s)_)+" # get these from python syntax patterns instead
+patterns = [
 
-patterns = {
-
-    # dynamic definition wrapper
-    r'\[\[.*?\]\]': {   
-
+    {   'pattern': syntax.dynamic_def_c,
         'self': {
-            'color':theme['dynamic_definition_wrapper']
-            },
+        	            'color':theme['dynamic_definition_wrapper']
+        },
 
         'inside' : [ 
 
-            # function names
-            {   r'(\+|\-|[A-Z]+)(?=\(.*?\))' : { 
-                
-                    'self': {
-                        'color' : theme['function_names']
-                        }
-                    },
-
-                # keys
-                r'([\w]+)(?=\:)': { 
-                    
-                    'self': {
-                        'color': theme['keys'] 
-                        },
-                    },
-
-                # values, single-word
-                r'(?<=\:)([\w]+)' : { 
-
-                    'self' : {
-                        'color' : theme['values'] 
-                        },
-                    },
-
-                # keywords
-                r'\b(-[a-z]+)\b' : { 
-
-                    'self' : {
-                        'color' : theme['keywords'] 
-                        },
-                    },   
-                
-                # value strings (quotations)
-                r'([\w]+)\:("[\w\s]+")' : { 
-
-                    'self' : {
-                        'color' : theme['value_strings'] 
-                        }
-                    }  
-                } 
-          ],
-
-      },
-
-    # compact node opener
-    r'^[^\S\n]*?•' : {
-        
-        'flags': re.MULTILINE,
-        'self' : {
-            'color' : theme['bullet']
-            }
-       
-    },
-
-    # metadata ::
-    r'::' : { 
-    
-        'self' : {
-            'color' : theme['metadata_symbol'] 
-            },
-        },
-
-    # metadata key
-    r'\w+?(?=::)' : {
-
-        'self' : {
-            'font': theme['font']['bold'],
-        },
-    },
-    
-    # metadata value 
-    r'(?<=::)[^\n};@]+;?' : {
-
-       'self': {
-            'color' : theme['metadata_values'] 
-        },
-
-      'inside': [
-            # metadata separator
-            { '-' : { 
-
+            {   'pattern': syntax.function_c, 
                 'self': {
-                    'color': theme['metadata_separator'] 
-                    }  
+                    'color' : theme['function_names']
                 },
+                'inside' : [
+                    {
+                        'pattern': syntax.metadata_key_c, 
+                        'self': {
+                            'color': theme['keys'] 
+                            },
+                    },
+                    {   
+                        'pattern': syntax.metadata_values_c, 
+                        'self' : {
+                            'color' : theme['values'] 
+                            },
+                    },
+                    {
+                        'pattern': syntax.flag_c, 
+                        'self' : {
+                            'color' : theme['flag'] 
+                            },
+                    },
+                ]
             }
         ]
     },
+    {
+        'pattern': syntax.bullet_c,
+        'self' : {
+            'color' : theme['bullet']
+            }
+    },
+    {   
+        'pattern': syntax.metadata_assigner_c,
+        'self' : {
+            'color' : theme['metadata_assigner'] 
+        },
+    },
+    {
+        'pattern': syntax.metadata_key_c,
+        'self' : {
+            'font': theme['font']['regular'],
+        },
+    },
+    {
+        'pattern': syntax.metadata_values_c,
+        'self': {
+            'color' : theme['metadata_values'] 
+        },
 
-    # hash metadata shorthand
-    r'(?:^|\s)#[A-Z,a-z].*?\b' : { 
-
+        'inside': [
+            { 
+                'pattern':syntax.metadata_separator_c, 
+                'self': {
+                    'color': theme['metadata_separator'] 
+                    }  
+            },
+        ]
+    },
+    {
+        'pattern':syntax.hash_meta_c,
         'self': {
             'font' : theme['font']['bold']
             }
-        },   
-
-    # timestamps
-    r'<.*?>':{  
-
+    },   
+    {
+        'pattern': syntax.timestamp_c,
         'self': {
             'color': theme['node_pointers'] 
             },
-        },                             
-
-    # error messages
-    r'<!{2}.*?!{2}>\n?' : { 
+    },
+    {
+        'pattern':  syntax.error_messages_c, 
         'self' : {
             'color' : theme ['error_messages'] 
             },
-        },
-    
-    #node link or pointer
-    r'(\|\s)' + title_pattern + '\s>{1,2}(?!>)': {  
-        
-        'flags': 0,
+    },
+    {
+        'pattern': syntax.node_link_or_pointer_c,       
         'self': {
             'color' : theme['node_pointers'],
             },
 
-        },  
-        
-    #node titles
-     r'(\|\s)' + title_pattern : {
+    },  
+    {  
+        'pattern':syntax.title_regex_c,
         'self': {
             'font' : theme['font']['bold']
         },
     },
-
-    # node wrapper:
-    r'\{' : {
+    {
+        'pattern': syntax.opening_wrapper_c,
         'type' : 'push',
-        'pop' : r'\}',
+        'pop' : {
+            'pattern': syntax.closing_wrapper_c
+            }
     },
-}
+]

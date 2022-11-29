@@ -1,4 +1,5 @@
 from colors import colors
+from fonts import fonts
 
 theme = {   
     'dynamic_definition_wrapper' :  colors['grey6'],
@@ -7,18 +8,17 @@ theme = {
     'function_names' :              colors['grey_reg'],
     'keys' :                        colors['red'],
     'values' :                      colors['blue_brighter'],
-    'keywords' :                    colors['red'],
+    'flag' :                        colors['red'],
     'value_strings' :               colors['red'],
     'bullet' :                      colors['red'],
-    'metadata_symbol' :             colors['grey_reg'],
+    'metadata_assigner' :           colors['grey_reg'],
     'metadata_values' :             colors['blue_brighter'],
     'metadata_separator' :          colors['unobtrusive'],
     'node_pointers' :               colors['grey5'],
     'error_messages' :              colors['red'],
     'font' : {
-        'name' : 'Fira Code',
-        'bold' : 'FiraCode-Bold',
-        'size' : 12,
+        'regular' : fonts['Fira Code'],
+        'bold' :    fonts['FiraCode-Bold'],
     },
     'wrappers' : [
         colors['blue_lighter'],

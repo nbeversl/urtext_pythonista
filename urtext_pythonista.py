@@ -231,7 +231,7 @@ class UrtextEditor(BaseEditor):
 				return False
 			self.open_file(self.current_open_file, save_first=False)
 			
-	def refresh_file(self, text=''):   
+	def refresh_file(self):
 		syntax_highlighter.setAttribs(self.tv, self.tvo)
 		
 	def open_file(self, filename, save_first=True):
