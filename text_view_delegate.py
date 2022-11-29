@@ -11,7 +11,7 @@ class TextViewDelegate(object):
 		self.main_view.saved = False
 		now = time.time()
 		if now - self.time > .5:
-			self.main_view.refresh_file()   
+			self.main_view.refresh_syntax_highlighting()   
 		self.time = time.time()
 		
 	def textview_did_change_selection(self, textview):

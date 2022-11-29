@@ -89,7 +89,7 @@ class UrtextEditor(BaseEditor):
 		else:
 			welcome_text += "No initial project was loaded."
 		self.tv.text = welcome_text
-		self.refresh_file()
+		self.refresh_syntax_highlighting()
 
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
@@ -230,9 +230,18 @@ class UrtextEditor(BaseEditor):
 			if hash(contents) == self.current_open_file_hash:
 				return False
 			self.open_file(self.current_open_file, save_first=False)
+			self.refresh_syntax_highlighting()
 			
-	def refresh_file(self):
+	def refresh_syntax_highlighting(self):
+		position = self.tv.selected_range
+		self.tv.scroll_enabled= False     
 		syntax_highlighter.setAttribs(self.tv, self.tvo)
+		self.tv.scroll_enabled= True
+		#return # debug TODO
+		try:
+			self.tv.selected_range = position
+		except ValueError:
+			pass
 		
 	def open_file(self, filename, save_first=True):
 		"""
@@ -377,7 +386,7 @@ class UrtextEditor(BaseEditor):
 			self.executor.submit(self.refresh_open_file_if_modified, changed_files)
 		else:
 			self.refresh_open_file_if_modified(changed_files)
-		self.refresh_file()
+		self.refresh_syntax_highlighting()
 		
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 

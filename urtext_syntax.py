@@ -5,7 +5,7 @@ patterns = [
 
     {   'pattern': syntax.dynamic_def_c,
         'self': {
-        	            'color':theme['dynamic_definition_wrapper']
+        	   'color':theme['dynamic_definition_wrapper']
         },
 
         'inside' : [ 
@@ -79,7 +79,7 @@ patterns = [
     {
         'pattern': syntax.timestamp_c,
         'self': {
-            'color': theme['node_pointers'] 
+            'color': theme['timestamp'] 
             },
     },
     {

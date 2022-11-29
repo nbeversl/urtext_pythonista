@@ -16,6 +16,7 @@ theme = {
     'metadata_separator' :          colors['unobtrusive'],
     'node_pointers' :               colors['grey5'],
     'error_messages' :              colors['red'],
+    'timestamp':                    colors['blue_brighter'],
     'font' : {
         'regular' : fonts['Fira Code'],
         'bold' :    fonts['FiraCode-Bold'],

@@ -107,7 +107,7 @@ class BaseEditor(ui.View):
 
 	def display_welcome(self, sender):
 		self.tv.text = self.welcome_text
-		self.refresh_file()
+		self.refresh_syntax_highlighting()
 
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
@@ -144,7 +144,7 @@ class BaseEditor(ui.View):
 				return False
 			self.open_file(self.current_open_file, save_first=False)
 			
-	def refresh_file(self, text=''):   
+	def refresh_syntax_highlighting(self, text=''):   
 		syntax_highlighter.setAttribs(self.tv, self.tvo)
 		
 	def open_file(self, filename, save_first=True):
