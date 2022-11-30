@@ -345,9 +345,10 @@ class UrtextEditor(BaseEditor):
 				continue
 			else:
 				console.hud_alert('Project compiled. No home node for this project','error',0.5)
+		self.open_home_button_pressed = False
 		if not self.current_open_file: # only if another file has not been opened
 			self.open_home(None)
-		self.open_home_button_pressed = False
+		
 
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
