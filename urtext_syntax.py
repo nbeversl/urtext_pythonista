@@ -16,26 +16,40 @@ patterns = [
                 },
                 'inside' : [
                     {
-                        'pattern': syntax.metadata_key_c, 
-                        'self': {
-                            'color': theme['keys'] 
-                            },
-                    },
-                    {   
-                        'pattern': syntax.metadata_values_c, 
-                        'self' : {
-                            'color' : theme['values'] 
-                            },
-                    },
-                    {
                         'pattern': syntax.dd_flag_c, 
                         'self' : {
                             'color' : theme['flag'] 
                             },
                     },
+                    {   
+                        'pattern' : syntax.function_c,
+                        'self' : {
+                            'color' : theme['dd_function'],
+                        }
+
+                    }
                 ]
             }
         ]
+    },
+    {
+        'pattern': syntax.metadata_key_c, 
+        'self': {
+            'color': theme['keys'] 
+            },
+    },
+    {
+        'pattern' : syntax.metadata_flags_c,
+        'self' : {
+            'font' : theme['metadata_flags']
+        }
+
+    },
+    {   
+        'pattern': syntax.metadata_values_c, 
+        'self' : {
+            'color' : theme['values'] 
+            },
     },
     {
         'pattern': syntax.bullet_c,
@@ -85,16 +99,20 @@ patterns = [
     {
         'pattern':  syntax.error_messages_c, 
         'self' : {
-            'color' : theme ['error_messages'] 
+            'color' : theme['error_messages'] 
             },
     },
     {
         'pattern': syntax.node_link_or_pointer_c,       
         'self': {
-            'color' : theme['node_pointers'],
+            'font' : theme['font']['bold'],
             },
-
-    },  
+        'groups' : {
+                2 : { 
+                    'color': theme['node_pointers']
+                    },
+                }   
+    },
     {  
         'pattern':syntax.node_title_c,
         'self': {

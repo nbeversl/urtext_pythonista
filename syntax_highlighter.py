@@ -92,7 +92,26 @@ def nest_colors(str_obj, current_text, offset, parse_patterns):
 				pattern['self']['color'],
 				NSRange(start + offset,length)
 			  )
-			
+
+			if 'groups' in pattern:
+				for g in pattern['groups']:
+					group_start, group_end = m.span(g)
+					group_length = group_end - group_start
+
+					if 'font' in pattern['groups'][g]: 
+						str_obj.addAttribute_value_range_(
+						ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), 
+						pattern['groups'][g]['font'], 
+						NSRange(group_start + offset, group_length))
+
+					if 'color' in pattern['groups'][g]:
+					  str_obj.addAttribute_value_range_(
+						ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')),
+						pattern['groups'][g]['color'],
+						NSRange(group_start + offset, group_length)
+					  )
+					
 			if 'inside' in pattern:
 				substring = current_text[start:end]
 				nest_colors(str_obj, substring, start, pattern['inside'])
+
