@@ -26,16 +26,16 @@ def setAttribs(tv, tvo, initial=False):
 	str_obj = ObjCClass('NSMutableAttributedString').alloc().initWithString_(current_text)
 	original_str_obj = ObjCClass('NSMutableAttributedString').alloc().initWithString_(current_text)  
 
-	# str_obj.addAttribute_value_range_(
-	# 	ObjCInstance(
-	# 		c_void_p.in_dll(c,'NSFontAttributeName')), 
-	# 	theme['font']['regular'], 
-	# 	NSRange(0,len(current_text)))
+	str_obj.addAttribute_value_range_(
+		ObjCInstance(
+			c_void_p.in_dll(c,'NSFontAttributeName')), 
+		theme['font']['regular'], 
+		NSRange(0,len(current_text)))
 
-	# str_obj.addAttribute_value_range_(
-	# 	ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')), 
-	# 	theme['foreground_color'], 
-	# 	NSRange(0,len(current_text)))
+	str_obj.addAttribute_value_range_(
+		ObjCInstance(c_void_p.in_dll(c,'NSForegroundColorAttributeName')), 
+		theme['foreground_color'], 
+		NSRange(0,len(current_text)))
 
 	nested_level = 0
 	
@@ -79,12 +79,12 @@ def nest_colors(str_obj, current_text, offset, parse_patterns):
 			start, end = m.span()
 			length = end-start
 			
-			# if 'font' in pattern['self']: 
+			if 'font' in pattern['self']: 
 				  
-			#   str_obj.addAttribute_value_range_(
-			# 	ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), 
-			# 	pattern['self']['font'], 
-			# 	NSRange(start + offset,length))
+			  str_obj.addAttribute_value_range_(
+				ObjCInstance(c_void_p.in_dll(c,'NSFontAttributeName')), 
+				pattern['self']['font'], 
+				NSRange(start + offset,length))
 			
 			if 'color' in pattern['self']:
 			  str_obj.addAttribute_value_range_(

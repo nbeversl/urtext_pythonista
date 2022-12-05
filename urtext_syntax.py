@@ -28,7 +28,7 @@ patterns = [
                             },
                     },
                     {
-                        'pattern': syntax.flag_c, 
+                        'pattern': syntax.dd_flag_c, 
                         'self' : {
                             'color' : theme['flag'] 
                             },
@@ -96,7 +96,7 @@ patterns = [
 
     },  
     {  
-        'pattern':syntax.title_regex_c,
+        'pattern':syntax.node_title_c,
         'self': {
             'font' : theme['font']['bold']
         },
