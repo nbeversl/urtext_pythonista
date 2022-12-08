@@ -16,15 +16,15 @@ from urtext_syntax import UrtextSyntax
 
 class UrtextEditor(BaseEditor):
 
+	name = "Pythonista Urtext"
+
 	def __init__(self, 
 		urtext_project_path,  
-		app,
 		theme=urtext_theme_light,
 		initial_project=None):
 		
 		super().__init__()
 
-		self.name = "Pythonista Urtext" 
 		self.urtext_project_path = urtext_project_path
 		self._UrtextProjectList = ProjectList(
 			urtext_project_path, 
