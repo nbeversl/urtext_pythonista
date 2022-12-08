@@ -22,8 +22,8 @@ class LaunchUrtextEditor(LaunchEditor):
             self.theme = args['theme']
 
         self.initial_project = None
-        if 'initial_project' in args:
-            self.theme = args['initial_project']
+        if 'initial' in args:
+            self.initial_project = args['initial']
 
     def start(self):
         if not self.app.is_active():

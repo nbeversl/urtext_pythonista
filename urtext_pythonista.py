@@ -19,7 +19,7 @@ class UrtextEditor(BaseEditor):
 	name = "Pythonista Urtext"
 
 	def __init__(self, 
-		urtext_project_path,  
+		urtext_project_path,
 		theme=urtext_theme_light,
 		initial_project=None):
 		
@@ -27,9 +27,9 @@ class UrtextEditor(BaseEditor):
 
 		self.urtext_project_path = urtext_project_path
 		self._UrtextProjectList = ProjectList(
-			urtext_project_path, 
+			urtext_project_path,
 			initial_project=initial_project)
-		self.initial_project=initial_project
+
 		self.theme = theme
 		self.current_open_file = None
 		self.current_open_file_hash = None
@@ -38,7 +38,7 @@ class UrtextEditor(BaseEditor):
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.open_home_button_pressed = False
-		self.setup_syntax_highlighter(UrtextSyntax, urtext_theme_light)
+		self.setup_syntax_highlighter(UrtextSyntax, theme)
 
 		self.setup_buttons({
 			'/' : self.open_link,
@@ -168,17 +168,12 @@ class UrtextEditor(BaseEditor):
 		path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
 		self._UrtextProjectList.init_new_project(path)
 
-
 	def select_project(self, sender): 
-
 		project_list = ui.ListDataSource(items=self._UrtextProjectList.project_titles()) 
 		project_list.action = self.switch_project		
-		self.dropDown.data_source = project_list
-		self.dropDown.delegate = project_list 
-		self.dropDown.height = self.dropDown.height * 8
-		self.hide_keyboard(None)
-		self.dropDown.hidden=False
-		self.dropDown.bring_to_front()
+		self.autoCompleter.set_items(self._UrtextProjectList.projects)
+		self.autoCompleter.set_action(self.switch_project)
+		self.autoCompleter.show()	
 
 	def switch_project(self, sender):
 		selection = sender.selected_row
