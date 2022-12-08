@@ -1,15 +1,14 @@
-from colors import colors
-from fonts import fonts
+from editor.themes.colors import colors
+from editor.themes.fonts import fonts
 
-theme = {   
+urtext_theme_light = {   
     'dynamic_definition_wrapper' :  colors['grey6'],
     'background_color' :            colors['paper'],
     'foreground_color' :            colors['grey5'],
-    'function_names' :              colors['white2'],
+    'function_names' :              colors['lightgray'],
     'keys' :                        colors['red'],
     'values' :                      colors['blue_brighter'],
     'flag' :                        colors['red'],
-    'value_strings' :               colors['red'],
     'bullet' :                      colors['red'],
     'metadata_assigner' :           colors['grey_reg'],
     'metadata_values' :             colors['blue_brighter'],
@@ -18,11 +17,10 @@ theme = {
     'error_messages' :              colors['red'],
     'timestamp':                    colors['blue_brighter'],
     'font' : {
-        'regular' : fonts['Fira Code'],
-        'bold' :    fonts['FiraCode-Bold'],
+        'regular' : fonts['Courier New'],
+        'bold' :    fonts['Courier New Bold'],
     },
-    'metadata_flags' :              fonts['FiraCode-Bold'],
-    'dd_function' :                 colors['white2'],
+    'metadata_flags' :              fonts['Courier New Bold'],
     'wrappers' : [
         colors['blue_lighter'],
         colors['aqua_green2'],

@@ -1,5 +1,6 @@
 from urtext.project_list import ProjectList
 from urtext.project import match_compact_node
+from editor.editor import BaseEditor
 import os
 import time
 import ui
@@ -7,23 +8,20 @@ import dialogs
 import re
 import console
 import webbrowser
-from app_single_launch import AppSingleLaunch
 import concurrent.futures
 from objc_util import *
-import syntax_highlighter
 import clipboard
-from editor import BaseEditor
-from auto_completer import AutoCompleter
-from text_view_delegate import TextViewDelegate
-
-app = None
+from urtext_theme_light import urtext_theme_light # default theme
+from urtext_syntax import UrtextSyntax
 
 class UrtextEditor(BaseEditor):
 
 	def __init__(self, 
 		urtext_project_path,  
-		app: AppSingleLaunch,
+		app,
+		theme=urtext_theme_light,
 		initial_project=None):
+		
 		super().__init__()
 
 		self.name = "Pythonista Urtext" 
@@ -32,7 +30,7 @@ class UrtextEditor(BaseEditor):
 			urtext_project_path, 
 			initial_project=initial_project)
 		self.initial_project=initial_project
-		
+		self.theme = theme
 		self.current_open_file = None
 		self.current_open_file_hash = None
 		self.saved = None
@@ -40,7 +38,8 @@ class UrtextEditor(BaseEditor):
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.open_home_button_pressed = False
-		
+		self.setup_syntax_highlighter(UrtextSyntax, urtext_theme_light)
+
 		self.setup_buttons({
 			'/' : self.open_link,
 			'?' : self.search_node_title,
@@ -79,17 +78,9 @@ class UrtextEditor(BaseEditor):
 			'Point >>' : self.point_to_node,
 			'Pop Node' : self.pop_node
 		   }
-		
-	def display_welcome(self, sender):
 
-		welcome_text = "Welcome to Urtext.\n\n"
-		if self.initial_project:
-			welcome_text += "Loading " + self.initial_project + "\n\n"
-			welcome_text += "Home node will display when found, or take any other action first instead." 
-		else:
-			welcome_text += "No initial project was loaded."
-		self.tv.text = welcome_text
-		self.refresh_syntax_highlighting()
+		self.present('fullscreen', hide_title_bar=True)
+		self.tv.begin_editing()
 
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
@@ -235,7 +226,7 @@ class UrtextEditor(BaseEditor):
 	def refresh_syntax_highlighting(self):
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
-		syntax_highlighter.setAttribs(self.tv, self.tvo)
+		self.syntax_highlighter.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
 		#return # debug TODO
 		try:
@@ -546,28 +537,4 @@ def get_full_line(position, tv):
 			distance_from_end_of_line = total_length - position
 			position_in_line = len(line) - distance_from_end_of_line
 			return (line, position_in_line)
-
-def launch_urtext_pythonista(args):
-
-	global app
-
-	if 'path' not in args or not args['path']:
-		return None
-
-	urtext_project_path = args['path']
-
-	#https://forum.omz-software.com/search/set_idle_timer_disabled?in=titlesposts
-	#on_main_thread(console.set_idle_timer_disabled)(True)
-
-	print ('Urtext is loading '+urtext_project_path)
-	app = AppSingleLaunch("Pythonisa Urtext")
-	if not app.is_active():
-		initial_project = args['initial'] if 'initial' in args else None
-		main_view = UrtextEditor(
-			urtext_project_path, 
-			app, 
-			initial_project=initial_project)
-		app.will_present(main_view)
-		main_view.present('fullscreen', hide_title_bar=True)
-		main_view.display_welcome(None)
-		main_view.tv.begin_editing()
+		
