@@ -1,6 +1,6 @@
 from urtext.project_list import ProjectList
 from urtext.project import match_compact_node
-from editor.editor import BaseEditor
+from sublemon.editor import BaseEditor
 import os
 import time
 import ui
@@ -18,19 +18,26 @@ class UrtextEditor(BaseEditor):
 
 	name = "Pythonista Urtext"
 
-	def __init__(self, 
-		urtext_project_path,
-		theme=urtext_theme_light,
-		initial_project=None):
-		
-		super().__init__()
+	def __init__(self, args):
+		super().__init__({})
 
-		self.urtext_project_path = urtext_project_path
+		self.theme = urtext_theme_light # default
+
+		self.urtext_project_path = ''
+		if 'path' in args:
+			self.urtext_project_path = args['path']
+
+		if 'theme' in args:
+			self.theme = args['theme']
+
+		self.initial_project = None
+		if 'initial_project' in args:
+			self.initial_project = args['initial_project']
+
 		self._UrtextProjectList = ProjectList(
-			urtext_project_path,
-			initial_project=initial_project)
+			self.urtext_project_path,
+			initial_project=self.initial_project)
 
-		self.theme = theme
 		self.current_open_file = None
 		self.current_open_file_hash = None
 		self.saved = None
@@ -38,8 +45,7 @@ class UrtextEditor(BaseEditor):
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.open_home_button_pressed = False
-		self.setup_syntax_highlighter(UrtextSyntax, theme)
-
+		self.setup_syntax_highlighter(UrtextSyntax, self.theme)
 		self.setup_buttons({
 			'/' : self.open_link,
 			'?' : self.search_node_title,
@@ -79,8 +85,12 @@ class UrtextEditor(BaseEditor):
 			'Pop Node' : self.pop_node
 		   }
 
-		self.present('fullscreen', hide_title_bar=True)
-		self.tv.begin_editing()
+		launch_actions = {
+			'new_node' : self.new_node
+		}
+
+		if 'launch_action' in args and args['launch_action'] in launch_actions:
+			launch_actions[args['launch_action']](None)
 
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
@@ -96,7 +106,7 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def run_chosen_option(self, function):
-		self.main_view[function]()
+		self.main_menu[function]()
 
 	def insert_dynamic_def(self,sender):
 		# broken right now
@@ -223,7 +233,6 @@ class UrtextEditor(BaseEditor):
 		self.tv.scroll_enabled= False     
 		self.syntax_highlighter.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
-		#return # debug TODO
 		try:
 			self.tv.selected_range = position
 		except ValueError:
@@ -248,6 +257,7 @@ class UrtextEditor(BaseEditor):
 		self.tv.text=contents
 		self.current_open_file = filename
 		self.current_open_file_hash = hash(contents)
+		self.refresh_syntax_highlighting()
 		return changed_files
 
 	def timestamp(self, sender):
@@ -418,7 +428,7 @@ class UrtextEditor(BaseEditor):
 
 	def insert_link_to_node(self, title):
 		# could be refactored into Urtext library
-		link = main_view._UrtextProjectList.build_contextual_link(title)
+		link = self._UrtextProjectList.build_contextual_link(title)
 		self.tv.replace_range(self.tv.selected_range, link)
 
 	def link_to_new_node(self, title):
@@ -432,7 +442,7 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def insert_pointer_to_node(self, sender):
-		link = main_view._UrtextProjectList.build_contextual_link(
+		link = self._UrtextProjectList.build_contextual_link(
 			title,
 			pointer=True) 
 		self.tv.replace_range(self.tv.selected_range, link)

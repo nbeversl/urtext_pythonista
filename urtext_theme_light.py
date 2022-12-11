@@ -1,5 +1,5 @@
-from editor.themes.colors import colors
-from editor.themes.fonts import fonts
+from sublemon.themes.colors import colors
+from sublemon.themes.fonts import fonts
 
 urtext_theme_light = {   
     'dynamic_definition_wrapper' :  colors['grey6'],
