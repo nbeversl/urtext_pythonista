@@ -263,7 +263,7 @@ class UrtextEditor(BaseEditor):
 	def timestamp(self, sender):
 		self.tv.replace_range(
 			self.tv.selected_range, 
-			self._UrtextProjectList.current_project.timestamp())
+			self._UrtextProjectList.current_project.timestamp(as_string=True))
 
 	def open_link(self, sender):
 		

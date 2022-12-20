@@ -1,12 +1,14 @@
 import urtext.syntax as syntax
+import re
 
 class UrtextSyntax:
 
     def __init__(self, theme):
         
         self.theme = theme
+        self.name = 'Urtext'
         self.syntax = [
-
+   
             {   'pattern': syntax.dynamic_def_c,
                 'self': {
                 	   'color':theme['dynamic_definition_wrapper']
@@ -74,7 +76,7 @@ class UrtextSyntax:
 
                 'inside': [
                     { 
-                        'pattern':syntax.metadata_separator_c, 
+                        'pattern':syntax.metadata_separator_pattern_c, 
                         'self': {
                             'color': theme['metadata_separator'] 
                             }  
@@ -94,7 +96,7 @@ class UrtextSyntax:
                     },
             },
             {
-                'pattern':  syntax.error_messages_c, 
+                'pattern':  syntax.urtext_messages_c, 
                 'self' : {
                     'color' : theme['error_messages'] 
                     },
@@ -122,5 +124,11 @@ class UrtextSyntax:
                 'pop' : {
                     'pattern': syntax.closing_wrapper_c
                     }
+            },
+            {
+                'pattern': re.compile('`.*?`'),
+                'self' : {
+                    'color' : theme['error_messages']
+                    },
             },
         ]
