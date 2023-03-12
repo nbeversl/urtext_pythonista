@@ -34,9 +34,8 @@ class UrtextEditor(BaseEditor):
 		if 'initial_project' in args:
 			self.initial_project = args['initial_project']
 
-		self._UrtextProjectList = ProjectList(
-			self.urtext_project_path,
-			initial_project=self.initial_project)
+		self._UrtextProjectList = ProjectList(self.urtext_project_path)
+		self._UrtextProjectList.set_current_project(self.urtext_project_path)
 
 		self.current_open_file = None
 		self.current_open_file_hash = None
@@ -55,6 +54,7 @@ class UrtextEditor(BaseEditor):
 			';' : self.new_node,
 			'S' : self.manual_save,
 			'{' : self.new_inline_node,
+			'->': self.tab,
 			'::': self.meta_autocomplete,
 			'M' : self.main_menu,
 			'D' : self.tag_from_other,
@@ -75,8 +75,7 @@ class UrtextEditor(BaseEditor):
 
 		self.setup_autocomplete()
 
-		self.menu_options  = {
-			'Initialize New Project' : self.init_new_project,
+		self.menu_options = {
 			'Move file to another project' : self.move_file,
 			'Reload Projects' : self.reload_projects,
 			'Delete Node' : self.delete_node,
@@ -101,12 +100,12 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def main_menu(self, sender):
-		self.autoCompleter.set_items(items=self.main_menu.keys())
+		self.autoCompleter.set_items(items=list(self.menu_options.keys()))
 		self.autoCompleter.set_action(self.run_chosen_option)
 		self.autoCompleter.show()
 
 	def run_chosen_option(self, function):
-		self.main_menu[function]()
+		self.menu_options[function](None)
 
 	def insert_dynamic_def(self,sender):
 		# broken right now
@@ -133,6 +132,9 @@ class UrtextEditor(BaseEditor):
 			self.executor.submit(self.refresh_open_file_if_modified, future)
 		else:
 			self.refresh_open_file_if_modified(future)
+
+	def tab(self, sender):
+		self.tv.replace_range(self.tv.selected_range, '\t')
 
 	def insert_id(self, sender):
 		new_id = self._UrtextProjectList.current_project.next_index()
@@ -204,7 +206,7 @@ class UrtextEditor(BaseEditor):
 			return
 		if self.current_open_file:
 			contents = self.tv.text 
-			with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file),'w', encoding='utf-8') as d:
+			with open(os.path.join(self._UrtextProjectList.current_project.entry_path, self.current_open_file),'w', encoding='utf-8') as d:
 				d.write(contents)
 			self.current_open_file_hash = hash(contents)
 			future = self._UrtextProjectList.current_project.on_modified(self.current_open_file)
@@ -217,11 +219,9 @@ class UrtextEditor(BaseEditor):
 	def refresh_open_file_if_modified(self, filenames):
 		if self._UrtextProjectList.current_project.is_async:
 			filenames = filenames.result()
-		if not isinstance(filenames, list):
-			filenames = [filenames]
 		self.saved = False
 		if self.current_open_file in filenames:
-			with open(os.path.join(self._UrtextProjectList.current_project.path, self.current_open_file), encoding="utf-8") as file:
+			with open(os.path.join(self._UrtextProjectList.current_project.entry_path, self.current_open_file), encoding="utf-8") as file:
 				contents=file.read()
 			if hash(contents) == self.current_open_file_hash:
 				return False
@@ -243,7 +243,7 @@ class UrtextEditor(BaseEditor):
 		Receives a basename.
 		Path used is always the path of the current project
 		"""
-		f = os.path.join(self._UrtextProjectList.current_project.path, filename)
+		f = os.path.join(self._UrtextProjectList.current_project.entry_path, filename)
 		if not os.path.exists(f):
 			console.hud_alert('FILE not found. Synced?','error',1)
 			return None
@@ -293,11 +293,11 @@ class UrtextEditor(BaseEditor):
 			return webbrowser.open('safari-'+link['link'])
 			
 		if link['kind'] == 'FILE':
-			if not os.path.exists(os.path.join(self._UrtextProjectList.current_project.path, link['link'])):
+			if not os.path.exists(os.path.join(self._UrtextProjectList.current_project.entry_path, link['link'])):
 				console.hud_alert(link['link'] + ' not found.', 'error',1)
 				return
 			# This is the best we can do right now in iOS
-			console.open_in(os.path.join(self._UrtextProjectList.current_project.path, link['link']))
+			console.open_in(os.path.join(self._UrtextProjectList.current_project.entry_path, link['link']))
 
 	def copy_link_to_current_node(self, sender, include_project=False):
 		if not self.current_open_file:
@@ -389,7 +389,8 @@ class UrtextEditor(BaseEditor):
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 		
 	def new_node(self, sender):        
-		new_node = self._UrtextProjectList.current_project.new_file_node()
+		new_node = self._UrtextProjectList.current_project.new_file_node(path=self._UrtextProjectList.current_project.entry_path)
+		
 		self.open_file(new_node['filename'])
 		self.tv.selected_range = (len(self.tv.text)-1,len(self.tv.text)-1)
 		self.tv.begin_editing()
@@ -423,16 +424,15 @@ class UrtextEditor(BaseEditor):
 
 	def link_to_node(self, sender):
 		self.autoCompleter.set_items(self._UrtextProjectList.current_project.all_nodes())
-		self.autoCompleter.set_actino(self.insert_link_to_node)
+		self.autoCompleter.set_action(self.insert_link_to_node)
 		self.autoCompleter.show()
 
 	def insert_link_to_node(self, title):
-		# could be refactored into Urtext library
 		link = self._UrtextProjectList.build_contextual_link(title)
 		self.tv.replace_range(self.tv.selected_range, link)
 
 	def link_to_new_node(self, title):
-		path = self._UrtextProjectList.current_project.path
+		path = self._UrtextProjectList.current_project.entry_path
 		new_node = self._UrtextProjectList.current_project.new_file_node()
 		self.tv.replace_range(self.tv.selected_range, '| '+ new_node['id'] + '>' )
 
