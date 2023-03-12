@@ -2,7 +2,7 @@
 /editor
 /sublemon
 /urtext
-diff/
+_diff/
 urtext_theme_light_custom.py
 main_custom.py
 launch_urtext_editor_custom.py
