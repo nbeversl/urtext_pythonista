@@ -70,7 +70,8 @@ class UrtextEditor(BaseEditor):
 			'↓' : self.hide_keyboard,
 			'k' : self.search_keywords,
 			'^' : self.free_associate,
-			'| >': self.link_to_new_node
+			'| >': self.link_to_new_node,
+			']]' : self.jump_to_def
 			})
 
 		self.setup_autocomplete()
@@ -532,6 +533,15 @@ class UrtextEditor(BaseEditor):
 			titles[self._UrtextProjectList.current_project.nodes[t].title] = (self._UrtextProjectList.current_project.title, t)
 		self.title_autocompleter.titles = titles
 		self.show_search_and_dropdown()
+
+	def jump_to_def(self, sender):
+		file_position = self.tv.selected_range[0] 
+		target_id = self._UrtextProjectList.current_project.get_node_id_from_position(
+				self.current_open_file, 
+				file_position)
+		source = self._UrtextProjectList.current_project.get_dynamic_definition(target_id)
+		if source:
+			self.open_node(source['id'], position=source['location'])
 
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
