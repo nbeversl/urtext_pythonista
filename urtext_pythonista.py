@@ -19,7 +19,7 @@ class UrtextEditor(BaseEditor):
 	name = "Pythonista Urtext"
 
 	def __init__(self, args):
-		super().__init__({})
+		super().__init__(args)
 
 		self.theme = urtext_theme_light # default
 
@@ -57,7 +57,7 @@ class UrtextEditor(BaseEditor):
 			'->': self.tab,
 			'::': self.meta_autocomplete,
 			'M' : self.main_menu,
-			'D' : self.tag_from_other,
+			'-' : self.tag_from_other,
 			't' : self.timestamp,
 			'<..>' : self.manual_timestamp,
 			'•' : self.compact_node,
@@ -399,9 +399,9 @@ class UrtextEditor(BaseEditor):
 	def tag_from_other(self, sender):
 		position = self.tv.selected_range[0]
 		line = self.tv.text[position:position+250]
-		link = self._UrtextProjectList.current_project.get_link(line)
+		link = self._UrtextProjectList.current_project.get_link(self.current_open_file, line)
 		if link and link['kind'] == 'NODE':
-			future = self._UrtextProjectList.current_project.tag_other_node(link['link'], 'tags::done;')
+			future = self._UrtextProjectList.current_project.tag_other_node(link['link'])
 			if self._UrtextProjectList.current_project.is_async:
 				self.executor.submit(self.refresh_open_file_if_modified, future)
 			else:

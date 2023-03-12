@@ -11,4 +11,5 @@ s = UrtextEditor({
     # 'launch_action' : 'new_node',
 })
 
-s.show()
+if not s.app.is_active():
+    s.show()
