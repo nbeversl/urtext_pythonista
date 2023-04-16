@@ -210,22 +210,13 @@ class UrtextEditor(BaseEditor):
 		console.hud_alert('Project List Reloaded' ,'success',1)
 
 	def select_project(self, sender): 
-		project_list = ui.ListDataSource(
-			items=self._UrtextProjectList.project_titles()) 
-		project_list.action = self.switch_project		
-		self.autoCompleter.set_items(self._UrtextProjectList.projects)
+		self.autoCompleter.set_items(self._UrtextProjectList.project_titles())
 		self.autoCompleter.set_action(self.switch_project)
-		self.autoCompleter.show()	
+		self.autoCompleter.show()
 
-	def switch_project(self, sender):
-		selection = sender.selected_row
+	def switch_project(self, selection):
 		self.tv.begin_editing()
-		self._UrtextProjectList.set_current_project(
-			self.project_list.items[selection])
-		self.dropDown.hidden = True
-		if node_to_open:
-			return self.open_node(node_to_open)
-		console.hud_alert('Project switched, but no navigation position available' ,'success',3)
+		self._UrtextProjectList.set_current_project(selection)
 
 	def manual_save(self, sender):
 		self.save(None)
@@ -403,7 +394,8 @@ class UrtextEditor(BaseEditor):
 			console.hud_alert('Tagged Done','success',0.5)
 
 	def meta_autocomplete(self, sender): #works	
-		self.autoCompleter.set_items(self._UrtextProjectList.get_all_meta_pairs())
+		self.autoCompleter.set_items(
+			self._UrtextProjectList.get_all_meta_pairs())
 		self.autoCompleter.set_action(self.insert_meta)
 		self.autoCompleter.show()	
 
@@ -479,21 +471,24 @@ class UrtextEditor(BaseEditor):
 		else:
 			# If it is not a compact node, make it one and add an ID
 			replace = True
-			contents = self._UrtextProjectList.current_project.add_compact_node(contents=line)
-
-		if replace:
-			self.tv.replace_range( (end_of_line-len(line),end_of_line) ,contents)
-		else:
-			self.tv.replace_range((end_of_line,end_of_line), '\n' + contents + '\n')
-			self.tv.selected_range = (end_of_line + 3, end_of_line + 3)
+			contents = self._UrtextProjectList.current_project.add_compact_node(
+				contents=line)
+		if end_of_line:
+			if replace:
+				self.tv.replace_range( (end_of_line-len(line),end_of_line) ,contents)
+			else:
+				self.tv.replace_range(
+					(end_of_line,end_of_line), '\n' + contents + '\n')
+				self.tv.selected_range = (end_of_line + 3, end_of_line + 3)
 
 	def find_end_of_line(self, position):
 		contents = self.tv.text
-		while contents[position] != '\n':
-			position += 1
-			if position == len(contents):
-				break
-		return position
+		if contents:
+			while contents[position] != '\n':
+				position += 1
+				if position == len(contents) - 1:
+					break
+			return position
 
 	def search_keywords(self, sender):
 		self.autoCompleter.set_items(
@@ -514,16 +509,19 @@ class UrtextEditor(BaseEditor):
 
 	def free_associate(self, sender):
 		full_line, col_pos = get_full_line(self.tv.selected_range[0], self.tv)
-		self.title_autocompleter.action = self.title_autocompleter.open_node
 		titles = {}
 
-		for t in self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_assoc_nodes( 
-			full_line,
-			self.current_open_file,
-			self.tv.selected_range[0],
-			):
-			titles[self._UrtextProjectList.current_project.nodes[t].title] = (self._UrtextProjectList.current_project.title, t)
-		self.title_autocompleter.titles = titles
+		for t in self._UrtextProjectList.current_project.extensions[
+			'RAKE_KEYWORDS'
+			].get_assoc_nodes( 
+				full_line,
+				self.current_open_file,
+				self.tv.selected_range[0],
+				):
+				titles[self._UrtextProjectList.current_project.nodes[t].title] = (
+					self._UrtextProjectList.current_project.title, t)
+		self.autoCompleter.set_items(titles)
+		self.autoCompleter.set_action(self.open_node)   
 		self.show_search_and_dropdown()
 
 	def jump_to_def(self, sender):
