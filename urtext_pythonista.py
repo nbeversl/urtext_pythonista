@@ -4,6 +4,7 @@ from sublemon.editor import BaseEditor
 import os
 import time
 import ui
+import clipboard
 import dialogs
 import re
 import console
@@ -33,10 +34,27 @@ class UrtextEditor(BaseEditor):
 		self.initial_project = None
 		if 'initial_project' in args:
 			self.initial_project = args['initial_project']
+		
+		editor_methods = {
+			'open_file_to_position' : self.open_file_to_position,
+			'error_message' : self.error_message,
+			'insert_text' : self.insert_text,
+			'save_current' : self.save,
+			'set_clipboard' : clipboard.set,
+			'open_external_file' : self.open_in,
+			'open_file_in_editor' : self.open_file,
+			'open_http_link' : self.open_http_link,
+			'get_buffer' : self.get_buffer,
+			'replace' : self.insert_text,
+			'insert_at_next_line' : self.insert_at_next_line,
+			'popup' : self.popup,
+		}
 
-		self._UrtextProjectList = ProjectList(self.urtext_project_path)
+		self._UrtextProjectList = ProjectList(
+			self.urtext_project_path,
+			editor_methods=editor_methods)
+
 		self._UrtextProjectList.set_current_project(self.urtext_project_path)
-
 		self.current_open_file = None
 		self.current_open_file_hash = None
 		self.saved = None
@@ -44,7 +62,7 @@ class UrtextEditor(BaseEditor):
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.open_home_button_pressed = False
-		self.setup_syntax_highlighter(UrtextSyntax, self.theme)
+		#self.setup_syntax_highlighter(UrtextSyntax, self.theme)
 		self.setup_buttons({
 			'/' : self.open_link,
 			'?' : self.search_node_title,
@@ -92,6 +110,23 @@ class UrtextEditor(BaseEditor):
 		if 'launch_action' in args and args['launch_action'] in launch_actions:
 			launch_actions[args['launch_action']](None)
 
+	def insert_text(self, text):
+		self.tv.replace_range(
+			self.tv.selected_range, 
+			text)
+
+	def get_buffer(self):
+		return self.tv.text
+
+	def open_in(self, filename):
+		console.open_in(filename)
+
+	def popup(self, message):
+		console.hud_alert(message, 'info', 2)
+
+	def insert_at_next_line(self, contents):
+		pass #future
+
 	def hide_keyboard(self, sender):
 		self.tv.end_editing()
 
@@ -119,30 +154,28 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(self.tv.selected_range, '`')
 	
 	def pop_node(self, sender):
-		filename = self.current_open_file		
-		file_pos = self.tv.selected_range[0] 
-		line, col_pos = get_full_line(file_pos, self.tv)
-		self.save(None)
-		future = self._UrtextProjectList.current_project.run_action('POP_NODE',
-			line,
-			filename,
-			file_pos = file_pos,
-			col_pos = col_pos)
+		self.save()
+		self._UrtextProjectList.current_project.on_modified(
+			self.current_open_file)
+		file_pos = self.tv.selected_range[0] + 1
+		full_line, col_pos = get_full_line(file_pos, self.tv)
+		r = self._UrtextProjectList.current_project.extensions[
+			'POP_NODE'
+			].pop_node(
+				full_line,
+				self.current_open_file,
+				file_pos=file_pos)
 
-		if self._UrtextProjectList.current_project.is_async:
-			self.executor.submit(self.refresh_open_file_if_modified, future)
-		else:
-			self.refresh_open_file_if_modified(future)
+		# to finish (from Sublime:)
+		# if self._UrtextProjectList.current_project.is_async:
+		# 	self.executor.submit(self.refresh_open_file_if_modified, future)
+		# else:
+		# 	self.refresh_open_file_if_modified(future)
 
 	def tab(self, sender):
 		self.tv.replace_range(self.tv.selected_range, '\t')
 
-	def insert_id(self, sender):
-		new_id = self._UrtextProjectList.current_project.next_index()
-		self.tv.replace_range(self.tv.selected_range, '@'+new_id)
-
 	def move_file(self, sender):
-
 		self.project_list.items = self._UrtextProjectList.project_titles()
 		self.project_list.action = self.execute_move_file
 		self.project_selector.height = 35*len(self.project_list.items)
@@ -162,27 +195,23 @@ class UrtextEditor(BaseEditor):
 		selected_project = self.project_list.items[selection]
 		if self._UrtextProjectList.move_file(self.current_open_file, selected_project):
 			self.current_open_file = None
-			self.nav_back(None)
 			console.hud_alert('File Moved' ,'success',2)
 		else:
 			console.hud_alert('Error happened. Check the Urtext console' ,'error',2)
+
+	def error_message(self, message):
+		console.hud_alert(message, 'error', 2)
 
 	def reload_projects(self, sender):
 		self.close()
 		self._UrtextProjectList = ProjectList(self.urtext_project_path)
 		self.present('fullscreen', hide_title_bar=True)
 		self.open_home(None)
-		
 		console.hud_alert('Project List Reloaded' ,'success',1)
 
-	def init_new_project(self, sender):
-		self.textfield.hidden=True 
-		new_project_path = sender.text
-		path = os.path.join(self._UrtextProjectList.base_path, new_project_path)
-		self._UrtextProjectList.init_new_project(path)
-
 	def select_project(self, sender): 
-		project_list = ui.ListDataSource(items=self._UrtextProjectList.project_titles()) 
+		project_list = ui.ListDataSource(
+			items=self._UrtextProjectList.project_titles()) 
 		project_list.action = self.switch_project		
 		self.autoCompleter.set_items(self._UrtextProjectList.projects)
 		self.autoCompleter.set_action(self.switch_project)
@@ -191,9 +220,9 @@ class UrtextEditor(BaseEditor):
 	def switch_project(self, sender):
 		selection = sender.selected_row
 		self.tv.begin_editing()
-		self._UrtextProjectList.set_current_project(self.project_list.items[selection])
+		self._UrtextProjectList.set_current_project(
+			self.project_list.items[selection])
 		self.dropDown.hidden = True
-		node_to_open = self._UrtextProjectList.nav_current()
 		if node_to_open:
 			return self.open_node(node_to_open)
 		console.hud_alert('Project switched, but no navigation position available' ,'success',3)
@@ -207,59 +236,67 @@ class UrtextEditor(BaseEditor):
 			return
 		if self.current_open_file:
 			contents = self.tv.text 
-			with open(os.path.join(self._UrtextProjectList.current_project.entry_path, self.current_open_file),'w', encoding='utf-8') as d:
+			with open(self.current_open_file,'w', encoding='utf-8') as d:
 				d.write(contents)
 			self.current_open_file_hash = hash(contents)
-			future = self._UrtextProjectList.current_project.on_modified(self.current_open_file)
+			future = self._UrtextProjectList.current_project.on_modified(
+				self.current_open_file)
 			if self._UrtextProjectList.current_project.is_async:
 				self.executor.submit(self.refresh_open_file_if_modified, future)
 			else:
 				self.refresh_open_file_if_modified(future)
 			self.saved = True
+
+	def open_http_link(self, link):
+		webbrowser.open('safari-'+link)
 	
 	def refresh_open_file_if_modified(self, filenames):
 		if self._UrtextProjectList.current_project.is_async:
 			filenames = filenames.result()
-		self.saved = False
-		if self.current_open_file in filenames:
-			with open(os.path.join(self._UrtextProjectList.current_project.entry_path, self.current_open_file), encoding="utf-8") as file:
-				contents=file.read()
-			if hash(contents) == self.current_open_file_hash:
-				return False
-			self.open_file(self.current_open_file, save_first=False)
-			self.refresh_syntax_highlighting()
+		if filenames:
+			self.saved = False
+			if self.current_open_file in filenames:
+				with open(self.current_open_file, encoding="utf-8") as file:
+					contents=file.read()
+				if hash(contents) == self.current_open_file_hash:
+					return False
+				self.open_file(self.current_open_file, save_first=False)
+				self.refresh_syntax_highlighting()
 			
 	def refresh_syntax_highlighting(self):
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
-		self.syntax_highlighter.setAttribs(self.tv, self.tvo)
+		# TODO FIX
+		#self.syntax_highlighter.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
 		try:
 			self.tv.selected_range = position
 		except ValueError:
 			pass
 		
+	def open_file_to_position(
+		self,
+		filename, 
+		position):
+
+		self.open_file(filename)		
+		self.tv.selected_range = (position, position)
+		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
+	
 	def open_file(self, filename, save_first=True):
-		"""
-		Receives a basename.
-		Path used is always the path of the current project
-		"""
-		f = os.path.join(self._UrtextProjectList.current_project.entry_path, filename)
-		if not os.path.exists(f):
+		if not os.path.exists(filename):
 			console.hud_alert('FILE not found. Synced?','error',1)
 			return None
 		
 		if save_first and self.current_open_file != filename:
 			self.save(None)
 
-		changed_files = self._UrtextProjectList.visit_file(f)
-		with open(f,'r', encoding='utf-8') as d:
+		with open(filename,'r', encoding='utf-8') as d:
 			contents=d.read()
 		self.tv.text=contents
 		self.current_open_file = filename
 		self.current_open_file_hash = hash(contents)
 		self.refresh_syntax_highlighting()
-		return changed_files
 
 	def timestamp(self, sender):
 		self.tv.replace_range(
@@ -267,39 +304,13 @@ class UrtextEditor(BaseEditor):
 			self._UrtextProjectList.current_project.timestamp(as_string=True))
 
 	def open_link(self, sender):
-		
-		filename = self.current_open_file		
 		file_pos = self.tv.selected_range[0] 
 		line, col_pos = get_full_line(file_pos, self.tv)
-		link = self._UrtextProjectList.get_link_and_set_project(
-			line,
-			filename, 
-			col_pos=col_pos,
-			file_pos=file_pos)
-
-		if link == None:
-			if self._UrtextProjectList.current_project.compiled:
-				console.hud_alert('Link not in the project.','error',1)
-			else:
-				console.hud_alert('Project is still compiling.','error',1)
-			return None
-
-		if link['kind'] == 'EDITOR_LINK':
-			return self.open_file(link['link'])
-			
-		if link['kind'] == 'NODE':
-			return self.open_node(link['link'], position=link['dest_position'])
-						
-		if link['kind'] == 'HTTP':  
-			return webbrowser.open('safari-'+link['link'])
-			
-		if link['kind'] == 'FILE':
-			if not os.path.exists(os.path.join(self._UrtextProjectList.current_project.entry_path, link['link'])):
-				console.hud_alert(link['link'] + ' not found.', 'error',1)
-				return
-			# This is the best we can do right now in iOS
-			console.open_in(os.path.join(self._UrtextProjectList.current_project.entry_path, link['link']))
-
+		link = self._UrtextProjectList.handle_link(
+			line, 
+			self.current_open_file, 
+			col_pos=col_pos)
+		
 	def copy_link_to_current_node(self, sender, include_project=False):
 		if not self.current_open_file:
 			return None
@@ -316,24 +327,11 @@ class UrtextEditor(BaseEditor):
 		else:
 			console.hud_alert('No link found here. Trying saving the file first.','error',2)
 
-	
 	def copy_link_to_current_node_with_project(self, sender):
 		return self.copy_link_to_current_node(None, include_project=True)
 
 	def open_home(self, sender):
-		if not self.open_home_button_pressed:
-			self.open_home_button_pressed = True
-			home_id = self._UrtextProjectList.current_project.get_home()
-			if home_id:
-				self.open_node(home_id)
-				self.open_home_button_pressed = False
-			else:
-				if self._UrtextProjectList.current_project.compiled:
-					console.hud_alert('No home node for this project','error',0.5)
-					self.open_home_button_pressed = False
-				else:
-					console.hud_alert('Home node will open when found','error',0.5)				
-					self.executor.submit(self.open_home_when_found, None)
+		self._UrtextProjectList.current_project.open_home()
 
 	def open_home_when_found(self, sender):
 		while not self._UrtextProjectList.current_project.get_home():
@@ -345,8 +343,7 @@ class UrtextEditor(BaseEditor):
 		self.open_home_button_pressed = False
 		if not self.current_open_file: # only if another file has not been opened
 			self.open_home(None)
-		
-
+	
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
 		self.tv.replace_range(selection, '{   }')
@@ -355,7 +352,6 @@ class UrtextEditor(BaseEditor):
 	def open_node(self, 
 			node_id,
 			position=None,
-			add_to_nav=True # so method can be called without affecting nav
 			):
 
 		if node_id not in self._UrtextProjectList.current_project.nodes:
@@ -371,9 +367,6 @@ class UrtextEditor(BaseEditor):
 
 		filename = self._UrtextProjectList.current_project.nodes[node_id].filename
 
-		if add_to_nav:
-			self._UrtextProjectList.nav_new(node_id)
-
 		if filename == self.current_open_file:
 			self.tv.selected_range = (position, position)
 			self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
@@ -388,7 +381,8 @@ class UrtextEditor(BaseEditor):
 		
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
-		
+
+
 	def new_node(self, sender):        
 		new_node = self._UrtextProjectList.current_project.new_file_node(path=self._UrtextProjectList.current_project.entry_path)
 		
@@ -449,14 +443,12 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(self.tv.selected_range, link)
 
 	def nav_back(self, sender):
-		last_node = self._UrtextProjectList.nav_reverse()
-		if last_node:
-			self.open_node(last_node, add_to_nav=False)
+		if 'NAVIGATION' in self._UrtextProjectList.extensions:
+			self._UrtextProjectList.extensions['NAVIGATION'].reverse()
 
 	def nav_forward(self, sender):
-		next_node = self._UrtextProjectList.nav_advance()
-		if next_node:
-			self.open_node(next_node, add_to_nav=False)
+		if 'NAVIGATION' in self._UrtextProjectList.extensions:
+			self._UrtextProjectList.extensions['NAVIGATION'].forward()
 
 	@ui.in_background
 	def delete_node(self, sender):
@@ -466,10 +458,10 @@ class UrtextEditor(BaseEditor):
 			'Delete this file node?',
 			'Yes'
 			) == 1 :
-			future = self._UrtextProjectList.current_project.delete_file(self.current_open_file)
+			future = self._UrtextProjectList.current_project.delete_file(
+				self.current_open_file)
 			console.hud_alert('Deleted','success',0.5)
 			self.current_open_file = None
-			self.nav_back(None)
 			if self._UrtextProjectList.current_project.is_async:
 				self.executor.submit(self.refresh_open_file_if_modified, future)
 			else:
