@@ -102,7 +102,7 @@ class UrtextSyntax:
                     'font' : theme['font']['bold'],
                     },
                 'groups' : {
-                        2 : { 
+                        5 : { 
                             'color': theme['node_pointers']
                             },
                         }   
