@@ -32,9 +32,10 @@ class UrtextSyntax:
                 ]
             },
             {
-                'pattern': syntax.metadata_key_c, 
+                'pattern': syntax.sh_metadata_key_c, 
                 'self': {
-                    'color': theme['keys'] 
+                    'color': theme['keys'],
+                    'font': theme['font']['regular'],
                     },
             },
             {
@@ -45,7 +46,7 @@ class UrtextSyntax:
 
             },
             {   
-                'pattern': syntax.metadata_values_c, 
+                'pattern': syntax.sh_metadata_values_c, 
                 'self' : {
                     'color' : theme['values'] 
                     },
@@ -63,13 +64,7 @@ class UrtextSyntax:
                 },
             },
             {
-                'pattern': syntax.metadata_key_c,
-                'self' : {
-                    'font': theme['font']['regular'],
-                },
-            },
-            {
-                'pattern': syntax.metadata_values_c,
+                'pattern': syntax.sh_metadata_values_c,
                 'self': {
                     'color' : theme['metadata_values'] 
                 },

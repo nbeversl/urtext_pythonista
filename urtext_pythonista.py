@@ -44,7 +44,7 @@ class UrtextEditor(BaseEditor):
 			'open_external_file' : self.open_in,
 			'open_file_in_editor' : self.open_file,
 			'open_http_link' : self.open_http_link,
-			'get_buffer' : self.get_buffer,
+			#'get_buffer' : self.get_buffer,
 			'replace' : self.insert_text,
 			'insert_at_next_line' : self.insert_at_next_line,
 			'popup' : self.popup,
@@ -61,8 +61,7 @@ class UrtextEditor(BaseEditor):
 		self.buttons = {}
 		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
-		self.open_home_button_pressed = False
-		#self.setup_syntax_highlighter(UrtextSyntax, self.theme)
+		self.setup_syntax_highlighter(UrtextSyntax, self.theme)
 		self.setup_buttons({
 			'/' : self.open_link,
 			'?' : self.search_node_title,
@@ -75,6 +74,7 @@ class UrtextEditor(BaseEditor):
 			'->': self.tab,
 			'::': self.meta_autocomplete,
 			'M' : self.main_menu,
+			'↓' : self.hide_keyboard,
 			'-' : self.tag_from_other,
 			't' : self.timestamp,
 			'<..>' : self.manual_timestamp,
@@ -85,7 +85,6 @@ class UrtextEditor(BaseEditor):
 			'*' : self.search_all_projects,
 			'c' : self.copy_link_to_current_node,
 			'^c': self.copy_link_to_current_node_with_project,
-			'↓' : self.hide_keyboard,
 			'k' : self.search_keywords,
 			'^' : self.free_associate,
 			'| >': self.link_to_new_node,
@@ -131,6 +130,7 @@ class UrtextEditor(BaseEditor):
 		self.tv.end_editing()
 
 	def search_all_projects(self, sender):
+		#TODO fix
 		self.autoCompleter.set_items(items=self._UrtextProjectList.titles())
 		self.autoCompleter.set_action(self.open_node)
 		self.autoCompleter.show()
@@ -195,12 +195,12 @@ class UrtextEditor(BaseEditor):
 		selected_project = self.project_list.items[selection]
 		if self._UrtextProjectList.move_file(self.current_open_file, selected_project):
 			self.current_open_file = None
-			console.hud_alert('File Moved' ,'success',2)
+			console.hud_alert('File Moved' ,'success',1)
 		else:
 			console.hud_alert('Error happened. Check the Urtext console' ,'error',2)
 
 	def error_message(self, message):
-		console.hud_alert(message, 'error', 2)
+		print(message)
 
 	def reload_projects(self, sender):
 		self.close()
@@ -230,10 +230,12 @@ class UrtextEditor(BaseEditor):
 			with open(self.current_open_file,'w', encoding='utf-8') as d:
 				d.write(contents)
 			self.current_open_file_hash = hash(contents)
-			future = self._UrtextProjectList.current_project.on_modified(
+			future = self._UrtextProjectList.on_modified(
 				self.current_open_file)
 			if self._UrtextProjectList.current_project.is_async:
-				self.executor.submit(self.refresh_open_file_if_modified, future)
+				self.executor.submit(
+					self.refresh_open_file_if_modified, 
+					future)
 			else:
 				self.refresh_open_file_if_modified(future)
 			self.saved = True
@@ -257,8 +259,7 @@ class UrtextEditor(BaseEditor):
 	def refresh_syntax_highlighting(self):
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
-		# TODO FIX
-		#self.syntax_highlighter.setAttribs(self.tv, self.tvo)
+		self.syntax_highlighter.setAttribs(self.tv, self.tvo)
 		self.tv.scroll_enabled= True
 		try:
 			self.tv.selected_range = position
@@ -270,6 +271,7 @@ class UrtextEditor(BaseEditor):
 		filename, 
 		position):
 
+		self.save(None)
 		self.open_file(filename)		
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
@@ -323,56 +325,11 @@ class UrtextEditor(BaseEditor):
 
 	def open_home(self, sender):
 		self._UrtextProjectList.current_project.open_home()
-
-	def open_home_when_found(self, sender):
-		while not self._UrtextProjectList.current_project.get_home():
-			if not self._UrtextProjectList.current_project.compiled:
-				time.sleep(.5)
-				continue
-			else:
-				console.hud_alert('Project compiled. No home node for this project','error',0.5)
-		self.open_home_button_pressed = False
-		if not self.current_open_file: # only if another file has not been opened
-			self.open_home(None)
 	
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
 		self.tv.replace_range(selection, '{   }')
 		self.tv.selected_range = (selection[0]+1, selection[0]+1)
-
-	def open_node(self, 
-			node_id,
-			position=None,
-			):
-
-		if node_id not in self._UrtextProjectList.current_project.nodes:
-			if  self._UrtextProjectList.current_project.compiled:
-				return console.hud_alert(node_id+' not in current project' ,'error',1)
-			else:
-				return console.hud_alert('Project is still compiling' ,'error',1)
-
-		if position ==  None:
-			position = self._UrtextProjectList.current_project.nodes[node_id].ranges[0][0]
-		else:
-			position = int(position)
-
-		filename = self._UrtextProjectList.current_project.nodes[node_id].filename
-
-		if filename == self.current_open_file:
-			self.tv.selected_range = (position, position)
-			self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
-			return
-
-		changed_files = self.open_file(filename)
-		if self._UrtextProjectList.current_project.is_async:
-			self.executor.submit(self.refresh_open_file_if_modified, changed_files)
-		else:
-			self.refresh_open_file_if_modified(changed_files)
-		self.refresh_syntax_highlighting()
-		
-		self.tv.selected_range = (position, position)
-		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
-
 
 	def new_node(self, sender):        
 		new_node = self._UrtextProjectList.current_project.new_file_node(path=self._UrtextProjectList.current_project.entry_path)
@@ -382,16 +339,20 @@ class UrtextEditor(BaseEditor):
 		self.tv.begin_editing()
 
 	def tag_from_other(self, sender):
-		position = self.tv.selected_range[0]
-		line = self.tv.text[position:position+250]
-		link = self._UrtextProjectList.current_project.get_link(self.current_open_file, line)
-		if link and link['kind'] == 'NODE':
-			future = self._UrtextProjectList.current_project.tag_other_node(link['link'])
-			if self._UrtextProjectList.current_project.is_async:
-				self.executor.submit(self.refresh_open_file_if_modified, future)
-			else:
-				self.refresh_open_file_if_modified(future)
-			console.hud_alert('Tagged Done','success',0.5)
+		self.save(None)
+		selection = self.tv.selected_range
+		line, cursor = get_full_line(selection[1], self.tv)
+		future = _UrtextProjectList.current_project.tag_other_node(
+			line,
+			cursor,
+			)
+		if self._UrtextProjectList.current_project.is_async:
+			self.executor.submit(
+				self.refresh_open_file_if_modified, 
+				future)
+		else:
+			self.refresh_open_file_if_modified(future)
+		console.hud_alert('Tagged','success',0.5)
 
 	def meta_autocomplete(self, sender): #works	
 		self.autoCompleter.set_items(
@@ -400,8 +361,10 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()	
 
 	def search_node_title(self, sender):
-		self.autoCompleter.set_items(self._UrtextProjectList.current_project.all_nodes())
-		self.autoCompleter.set_action(self.open_node)
+		self.autoCompleter.set_items(
+			self._UrtextProjectList.current_project.all_nodes())
+		self.autoCompleter.set_action(
+			self._UrtextProjectList.current_project.open_node)
 		self.autoCompleter.show()
 
 	def insert_meta(self, text):
@@ -458,7 +421,7 @@ class UrtextEditor(BaseEditor):
 				self.executor.submit(self.refresh_open_file_if_modified, future)
 			else:
 				self.refresh_open_file_if_modified(future)
-			
+
 	def compact_node(self, sender):
 		selection = self.tv.selected_range
 		contents = self.tv.text[selection[0]:selection[1]]
@@ -500,11 +463,13 @@ class UrtextEditor(BaseEditor):
 		selections = self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_by_keyword(selected_keyword)		
 		if len(selections) == 1:
 			self.tv.begin_editing()
-			return self.open_node(selections[0])
+			return self._UrtextProjectList.current.project.open_node(
+				selections[0])
 		else:
 			self.autoCompleter.hide()
 			self.autoCompleter.set_items(selections)
-			self.autoCompleter.set_action(self.open_node)
+			self.autoCompleter.set_action(
+				self._UrtextProjectList.current_project.open_node)
 			self.autoCompleter.show()
 
 	def free_associate(self, sender):
@@ -521,7 +486,8 @@ class UrtextEditor(BaseEditor):
 				titles[self._UrtextProjectList.current_project.nodes[t].title] = (
 					self._UrtextProjectList.current_project.title, t)
 		self.autoCompleter.set_items(titles)
-		self.autoCompleter.set_action(self.open_node)   
+		self.autoCompleter.set_action(
+			self._UrtextProjectList.current_project.open_node)   
 		self.show_search_and_dropdown()
 
 	def jump_to_def(self, sender):
@@ -529,9 +495,10 @@ class UrtextEditor(BaseEditor):
 		target_id = self._UrtextProjectList.current_project.get_node_id_from_position(
 				self.current_open_file, 
 				file_position)
-		source = self._UrtextProjectList.current_project.get_dynamic_definition(target_id)
+		source = self._UrtextProjectList.current_project.get_dynamic_definition(
+			target_id)
 		if source:
-			self.open_node(source['id'], position=source['location'])
+			self._UrtextProjectList.current_project.open_node(souce['id'])
 
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
