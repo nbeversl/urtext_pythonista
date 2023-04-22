@@ -430,10 +430,9 @@ class UrtextEditor(BaseEditor):
 	def find_end_of_line(self, position):
 		contents = self.tv.text
 		if contents:
-			while contents[position] != '\n':
+			while ( position < len(contents) - 1) and ( 
+				contents[position] != '\n'):
 				position += 1
-				if position == len(contents) - 1:
-					break
 			return position
 
 	def search_keywords(self, sender):
