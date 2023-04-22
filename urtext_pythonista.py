@@ -232,12 +232,7 @@ class UrtextEditor(BaseEditor):
 			self.current_open_file_hash = hash(contents)
 			future = self._UrtextProjectList.on_modified(
 				self.current_open_file)
-			if self._UrtextProjectList.current_project.is_async:
-				self.executor.submit(
-					self.refresh_open_file_if_modified, 
-					future)
-			else:
-				self.refresh_open_file_if_modified(future)
+			self.refresh_open_file_if_modified(future)
 			self.saved = True
 
 	def open_http_link(self, link):
@@ -332,7 +327,8 @@ class UrtextEditor(BaseEditor):
 		self.tv.selected_range = (selection[0]+1, selection[0]+1)
 
 	def new_node(self, sender):        
-		new_node = self._UrtextProjectList.current_project.new_file_node(path=self._UrtextProjectList.current_project.entry_path)
+		new_node = self._UrtextProjectList.current_project.new_file_node(
+			path=self._UrtextProjectList.current_project.entry_path)
 		
 		self.open_file(new_node['filename'])
 		self.tv.selected_range = (len(self.tv.text)-1,len(self.tv.text)-1)
@@ -342,17 +338,10 @@ class UrtextEditor(BaseEditor):
 		self.save(None)
 		selection = self.tv.selected_range
 		line, cursor = get_full_line(selection[1], self.tv)
-		future = _UrtextProjectList.current_project.tag_other_node(
+		future = self._UrtextProjectList.current_project.tag_other_node(
 			line,
-			cursor,
-			)
-		if self._UrtextProjectList.current_project.is_async:
-			self.executor.submit(
-				self.refresh_open_file_if_modified, 
-				future)
-		else:
-			self.refresh_open_file_if_modified(future)
-		console.hud_alert('Tagged','success',0.5)
+			cursor)
+		self.refresh_open_file_if_modified(future)
 
 	def meta_autocomplete(self, sender): #works	
 		self.autoCompleter.set_items(
@@ -413,14 +402,8 @@ class UrtextEditor(BaseEditor):
 			'Delete this file node?',
 			'Yes'
 			) == 1 :
-			future = self._UrtextProjectList.current_project.delete_file(
+			self._UrtextProjectList.current_project.delete_file(
 				self.current_open_file)
-			console.hud_alert('Deleted','success',0.5)
-			self.current_open_file = None
-			if self._UrtextProjectList.current_project.is_async:
-				self.executor.submit(self.refresh_open_file_if_modified, future)
-			else:
-				self.refresh_open_file_if_modified(future)
 
 	def compact_node(self, sender):
 		selection = self.tv.selected_range
