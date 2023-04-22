@@ -59,7 +59,6 @@ class UrtextEditor(BaseEditor):
 		self.current_open_file_hash = None
 		self.saved = None
 		self.buttons = {}
-		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 		self.updating_history = False
 		self.setup_syntax_highlighter(UrtextSyntax, self.theme)
 		self.setup_buttons({
@@ -229,7 +228,7 @@ class UrtextEditor(BaseEditor):
 			contents = self.tv.text 
 			with open(self.current_open_file,'w', encoding='utf-8') as d:
 				d.write(contents)
-			self.current_open_file_hash = hash(contents)
+			self.current_open_file_hash = hash(contents)			
 			future = self._UrtextProjectList.on_modified(
 				self.current_open_file)
 			self.refresh_open_file_if_modified(future)
@@ -239,9 +238,9 @@ class UrtextEditor(BaseEditor):
 		webbrowser.open('safari-'+link)
 	
 	def refresh_open_file_if_modified(self, filenames):
-		if self._UrtextProjectList.current_project.is_async:
-			filenames = filenames.result()
 		if filenames:
+			if self._UrtextProjectList.current_project.is_async:
+				filenames = filenames.result()
 			self.saved = False
 			if self.current_open_file in filenames:
 				with open(self.current_open_file, encoding="utf-8") as file:
@@ -250,7 +249,7 @@ class UrtextEditor(BaseEditor):
 					return False
 				self.open_file(self.current_open_file, save_first=False)
 				self.refresh_syntax_highlighting()
-			
+				
 	def refresh_syntax_highlighting(self):
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
@@ -294,7 +293,7 @@ class UrtextEditor(BaseEditor):
 	def open_link(self, sender):
 		file_pos = self.tv.selected_range[0] 
 		line, col_pos = get_full_line(file_pos, self.tv)
-		link = self._UrtextProjectList.handle_link(
+		self._UrtextProjectList.handle_link(
 			line, 
 			self.current_open_file, 
 			col_pos=col_pos)
@@ -347,7 +346,7 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.set_items(
 			self._UrtextProjectList.get_all_meta_pairs())
 		self.autoCompleter.set_action(self.insert_meta)
-		self.autoCompleter.show()	
+		self.autoCompleter.show()
 
 	def search_node_title(self, sender):
 		self.autoCompleter.set_items(
