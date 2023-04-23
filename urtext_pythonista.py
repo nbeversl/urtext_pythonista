@@ -472,14 +472,16 @@ class UrtextEditor(BaseEditor):
 		self.show_search_and_dropdown()
 
 	def jump_to_def(self, sender):
-		file_position = self.tv.selected_range[0] 
-		target_id = self._UrtextProjectList.current_project.get_node_id_from_position(
-				self.current_open_file, 
-				file_position)
-		source = self._UrtextProjectList.current_project.get_dynamic_definition(
+		target_id = self.get_node_id()
+		self._UrtextProjectList.current_project.go_to_dynamic_definition(
 			target_id)
-		if source:
-			self._UrtextProjectList.current_project.open_node(souce['id'])
+
+	def get_node_id(self):
+		if self.current_open_file:
+			return self._UrtextProjectList.current_project.get_node_id_from_position(
+				self.current_open_file, 
+				self.tv.selected_range[0])
+
 
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
