@@ -231,8 +231,8 @@ class UrtextEditor(BaseEditor):
 			self.current_open_file_hash = hash(contents)			
 			future = self._UrtextProjectList.on_modified(
 				self.current_open_file)
-			self.refresh_open_file_if_modified(future)
 			self.saved = True
+			self.refresh_open_file_if_modified(future)
 
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
