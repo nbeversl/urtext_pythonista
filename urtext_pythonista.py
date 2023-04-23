@@ -266,7 +266,7 @@ class UrtextEditor(BaseEditor):
 		position):
 
 		self.save(None)
-		self.open_file(filename)		
+		self.open_file(filename)
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
 	
@@ -280,6 +280,10 @@ class UrtextEditor(BaseEditor):
 
 		with open(filename,'r', encoding='utf-8') as d:
 			contents=d.read()
+		# prevents issue where the text area is too big
+		# for the new contents:
+		self.tv.text='' 
+		#
 		self.tv.text=contents
 		self.current_open_file = filename
 		self.current_open_file_hash = hash(contents)
@@ -482,7 +486,6 @@ class UrtextEditor(BaseEditor):
 				self.current_open_file, 
 				self.tv.selected_range[0])
 
-
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
 	total_length = 0
@@ -492,4 +495,3 @@ def get_full_line(position, tv):
 			distance_from_end_of_line = total_length - position
 			position_in_line = len(line) - distance_from_end_of_line
 			return (line, position_in_line)
-		
