@@ -48,15 +48,14 @@ class UrtextEditor(BaseEditor):
 			'replace' : self.insert_text,
 			'insert_at_next_line' : self.insert_at_next_line,
 			'popup' : self.popup,
+			'refresh_open_file' : self.refresh_open_file_if_modified,
 		}
 
 		self._UrtextProjectList = ProjectList(
 			self.urtext_project_path,
 			editor_methods=editor_methods)
-
 		self._UrtextProjectList.set_current_project(self.urtext_project_path)
 		self.current_open_file = None
-		self.current_open_file_hash = None
 		self.saved = None
 		self.buttons = {}
 		self.updating_history = False
@@ -218,37 +217,26 @@ class UrtextEditor(BaseEditor):
 		self._UrtextProjectList.set_current_project(selection)
 
 	def manual_save(self, sender):
-		self.save(None)
+		self.save()
 		console.hud_alert('Saved','success',0.5)
 
-	def save(self, sender):
+	def save(self):
 		if self.saved:
 			return
 		if self.current_open_file:
 			contents = self.tv.text 
 			with open(self.current_open_file,'w', encoding='utf-8') as d:
 				d.write(contents)
-			self.current_open_file_hash = hash(contents)			
 			future = self._UrtextProjectList.on_modified(
 				self.current_open_file)
 			self.saved = True
-			self.refresh_open_file_if_modified(future)
 
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
 	
-	def refresh_open_file_if_modified(self, filenames):
-		if filenames:
-			if self._UrtextProjectList.current_project.is_async:
-				filenames = filenames.result()
-			self.saved = False
-			if self.current_open_file in filenames:
-				with open(self.current_open_file, encoding="utf-8") as file:
-					contents=file.read()
-				if hash(contents) == self.current_open_file_hash:
-					return False
-				self.open_file(self.current_open_file, save_first=False)
-				self.refresh_syntax_highlighting()
+	def refresh_open_file_if_modified(self, filename):
+		if filename == self.current_open_file:
+			self.open_file(self.current_open_file, save_first=False)
 				
 	def refresh_syntax_highlighting(self):
 		position = self.tv.selected_range
@@ -265,7 +253,6 @@ class UrtextEditor(BaseEditor):
 		filename, 
 		position):
 
-		self.save(None)
 		self.open_file(filename)
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
@@ -276,7 +263,7 @@ class UrtextEditor(BaseEditor):
 			return None
 		
 		if save_first and self.current_open_file != filename:
-			self.save(None)
+		 	self.save()
 
 		with open(filename,'r', encoding='utf-8') as d:
 			contents=d.read()
@@ -286,7 +273,6 @@ class UrtextEditor(BaseEditor):
 		#
 		self.tv.text=contents
 		self.current_open_file = filename
-		self.current_open_file_hash = hash(contents)
 		self.refresh_syntax_highlighting()
 
 	def timestamp(self, sender):
@@ -338,13 +324,13 @@ class UrtextEditor(BaseEditor):
 		self.tv.begin_editing()
 
 	def tag_from_other(self, sender):
-		self.save(None)
+		self.save()
 		selection = self.tv.selected_range
 		line, cursor = get_full_line(selection[1], self.tv)
 		future = self._UrtextProjectList.current_project.tag_other_node(
 			line,
 			cursor)
-		self.refresh_open_file_if_modified(future)
+		#self.refresh_open_file_if_modified(future)
 
 	def meta_autocomplete(self, sender): #works	
 		self.autoCompleter.set_items(
@@ -448,7 +434,7 @@ class UrtextEditor(BaseEditor):
 		selections = self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_by_keyword(selected_keyword)		
 		if len(selections) == 1:
 			self.tv.begin_editing()
-			return self._UrtextProjectList.current.project.open_node(
+			return self._UrtextProjectList.current_project.open_node(
 				selections[0])
 		else:
 			self.autoCompleter.hide()
