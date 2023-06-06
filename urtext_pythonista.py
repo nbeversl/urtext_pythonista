@@ -12,8 +12,8 @@ import webbrowser
 import concurrent.futures
 from objc_util import *
 import clipboard
-from urtext_theme_light import urtext_theme_light # default theme
-from urtext_syntax import UrtextSyntax
+from urtext_pythonista.urtext_theme_light import urtext_theme_light # default theme
+from .urtext_syntax import UrtextSyntax
 
 class UrtextEditor(BaseEditor):
 
