@@ -45,12 +45,6 @@ class UrtextSyntax:
                 }
 
             },
-            {   
-                'pattern': syntax.sh_metadata_values_c, 
-                'self' : {
-                    'color' : theme['values'] 
-                    },
-            },
             {
                 'pattern': syntax.bullet_c,
                 'self' : {
