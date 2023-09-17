@@ -50,7 +50,7 @@ class UrtextEditor(BaseEditor):
 			'replace' : self.insert_text,
 			'insert_at_next_line' : self.insert_at_next_line,
 			'popup' : self.popup,
-			'refresh_open_file' : self.refresh_open_file_if_modified,
+			'refresh_open_file' : self.refresh_open_file,
 			'write_to_console' : print,
 		}
 
