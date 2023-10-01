@@ -1,12 +1,12 @@
 from sublemon.themes.colors import colors
 from sublemon.themes.fonts import fonts
 
-urtext_theme_light = {   
-    'name': 'Urtext Light',
-    'keyboard_appearance': 0,
+urtext_theme_dark = {  
+    'name': 'Urtext Dark', 
+    'keyboard_appearance': 1,
     'dynamic_definition_wrapper' :  colors['grey6'],
-    'background_color' :            colors['paper'],
-    'foreground_color' :            colors['grey5'],
+    'background_color' :            colors['black'],
+    'foreground_color' :            colors['white'],
     'function_names' :              colors['lightgray'],
     'keys' :                        colors['red'],
     'values' :                      colors['blue_brighter'],
@@ -30,6 +30,8 @@ urtext_theme_light = {
         colors['bright_green2'],
         colors['deep_blue2']
     ],
+
+    # must by hex, not UIColor
     'button_border_color' :         '#515151',
     'button_line_background_color': '#000000',
     'button_background_color' :     "#515151",
