@@ -11,14 +11,12 @@ import console
 import webbrowser
 import concurrent.futures
 from objc_util import *
-import clipboard
-from urtext_pythonista.urtext_theme_light import urtext_theme_light # default theme
-from urtext_pythonista.urtext_theme_dark import urtext_theme_dark
 from .urtext_syntax import UrtextSyntax
 
 class UrtextEditor(BaseEditor):
 
 	name = "Pythonista Urtext"
+	syntax = UrtextSyntax
 
 	def __init__(self, args):
 		super().__init__(args)
@@ -50,18 +48,17 @@ class UrtextEditor(BaseEditor):
 			'refresh_open_file' : self.refresh_open_file,
 			'write_to_console' : print,
 		}
-
+		self.download_to_local()
 		self._UrtextProjectList = ProjectList(
 			self.urtext_project_path,
 			editor_methods=editor_methods)
-
-		self.download_to_local()
+		
 		self._UrtextProjectList.set_current_project(self.urtext_project_path)
 		self.current_open_file = None
 		self.saved = None
 		self.buttons = {}
 		self.updating_history = False
-		self.setup_syntax_highlighter(UrtextSyntax, self.theme)
+		self.setup_syntax_highlighter()
 		self.setup_buttons({
 			'/' : self.open_link,
 			'?' : self.search_node_title,
@@ -106,6 +103,8 @@ class UrtextEditor(BaseEditor):
 
 		if 'launch_action' in args and args['launch_action'] in launch_actions:
 			launch_actions[args['launch_action']](None)
+		
+		self.show()
 
 	def insert_text(self, text):
 		self.tv.replace_range(
@@ -231,7 +230,6 @@ class UrtextEditor(BaseEditor):
 	def urtext_save(self):
 		self.download_to_local()
 		if self.save(None, save_as=False):
-			self.download_to_local()
 			self._UrtextProjectList.on_modified(
 				self.current_open_file)
 
@@ -247,7 +245,7 @@ class UrtextEditor(BaseEditor):
 			console.hud_alert(
 				'File contents refreshed',
 				'info',
-				3)
+				1)
 
 	def refresh_syntax_highlighting(self):
 		position = self.tv.selected_range
