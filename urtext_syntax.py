@@ -22,7 +22,7 @@ class UrtextSyntax:
                         },
                         'inside' : [
                             {
-                                'pattern': syntax.dd_flag_c, 
+                                'pattern': syntax.dd_flags_c, 
                                 'self' : {
                                     'color' : theme['flag'] 
                                     },
