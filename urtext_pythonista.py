@@ -11,7 +11,6 @@ import console
 import webbrowser
 from objc_util import *
 from .urtext_syntax import UrtextSyntax
-import concurrent.futures
 
 class UrtextEditor(BaseEditor):
 
@@ -106,7 +105,6 @@ class UrtextEditor(BaseEditor):
 
 		if 'launch_action' in args and args['launch_action'] in launch_actions:
 			launch_actions[args['launch_action']](None)
-		
 		self.show()
 
 	def insert_text(self, text):
@@ -212,7 +210,7 @@ class UrtextEditor(BaseEditor):
 	def add_hash_meta(self, sender):
 		hash_values = self._UrtextProjectList.current_project.get_all_values_for_key(
 				self._UrtextProjectList.current_project.settings['hash_key'])
-		self.autoCompleter.set_items([v[0] for v in hash_values])
+		self.autoCompleter.set_items(hash_values)
 		self.autoCompleter.set_action(self.insert_hash_meta)
 		self.autoCompleter.show()
 
@@ -319,8 +317,7 @@ class UrtextEditor(BaseEditor):
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1))
 		self.refresh_syntax_highlighting(highlight_range=node_range)
-		thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
-		thread_pool.submit(self.delay_unhighlight)
+		self.thread_pool.submit(self.delay_unhighlight)
 
 	def delay_unhighlight(self):
 		time.sleep(0.25)
