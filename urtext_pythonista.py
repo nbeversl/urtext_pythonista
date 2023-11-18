@@ -9,9 +9,9 @@ import dialogs
 import re
 import console
 import webbrowser
-import concurrent.futures
 from objc_util import *
 from .urtext_syntax import UrtextSyntax
+import concurrent.futures
 
 class UrtextEditor(BaseEditor):
 
@@ -36,7 +36,7 @@ class UrtextEditor(BaseEditor):
 			'open_file_to_position' : self.open_file_to_position,
 			'error_message' : self.error_message,
 			'insert_text' : self.insert_text,
-			'save_current' : self.urtext_save,
+			'save_file' : self.urtext_save,
 			'set_clipboard' : self.set_clipboard,
 			'open_external_file' : self.open_in,
 			'open_file_in_editor' : self.open_file,
@@ -72,6 +72,7 @@ class UrtextEditor(BaseEditor):
 			'->': self.tab,
 			'::': self.meta_autocomplete,
 			'M' : self.main_menu,
+			'-' : self.insert_meta_dash,
 			'↓' : self.hide_keyboard,
 			'#' : self.add_hash_meta,
 			't' : self.timestamp,
@@ -125,7 +126,9 @@ class UrtextEditor(BaseEditor):
 
 	def set_buffer(self, filename, contents):
 		if filename == self.current_open_file:
+			self.tv.scroll_enabled = False     
 			self.tv.text = contents
+			self.tv.scroll_enabled = True
 			self.saved = False
 			self.refresh_syntax_highlighting()
 			return True
@@ -261,18 +264,17 @@ class UrtextEditor(BaseEditor):
 
 	def urtext_save(self):
 		self.download_to_local()
-		if self.save(None, save_as=False):
+		if self.save(None, save_as=False, handle_changed_contents=False):
 			self._UrtextProjectList.on_modified(
 				self.current_open_file)
 
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
 
-
-	def refresh_syntax_highlighting(self):
+	def refresh_syntax_highlighting(self, highlight_range=None):
 		position = self.tv.selected_range
 		self.tv.scroll_enabled= False     
-		self.syntax_highlighter.setAttribs(self.tv, self.tvo)
+		self.syntax_highlighter.setAttribs(self.tv, self.tvo, highlight_range=highlight_range)
 		self.tv.scroll_enabled= True
 		try:
 			self.tv.selected_range = position
@@ -315,8 +317,14 @@ class UrtextEditor(BaseEditor):
 
 		self.open_file(filename)
 		self.tv.selected_range = (position, position)
-		self.tvo.scrollRangeToVisible(NSRange(position, 1)) 
+		self.tvo.scrollRangeToVisible(NSRange(position, 1))
+		self.refresh_syntax_highlighting(highlight_range=node_range)
+		thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+		thread_pool.submit(self.delay_unhighlight)
 
+	def delay_unhighlight(self):
+		time.sleep(0.25)
+		self.refresh_syntax_highlighting()
 
 	def timestamp(self, sender):
 		self.tv.replace_range(
@@ -355,7 +363,7 @@ class UrtextEditor(BaseEditor):
 			path=self._UrtextProjectList.current_project.entry_path)
 		
 		self.open_file(new_node['filename'])
-		self.tv.selected_range = (len(self.tv.text)-1,len(self.tv.text)-1)
+		self.tv.selected_range = (new_node['cursor_pos'], new_node['cursor_pos'])
 		self.tv.begin_editing()
 
 	def meta_autocomplete(self, sender): #works	
@@ -370,6 +378,15 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.set_action(
 			self._UrtextProjectList.current_project.open_node)
 		self.autoCompleter.show()
+		if not self._UrtextProjectList.current_project.compiled:
+			self.thread_pool.submit(self._refresh_node_browser_until_compiled)
+
+	def _refresh_node_browser_until_compiled(self):
+		while not self._UrtextProjectList.current_project.compiled:
+			time.sleep(1)
+			self.autoCompleter.set_items(
+				self._UrtextProjectList.current_project.sort_for_node_browser())
+
 
 	def insert_meta(self, text):
 		self.tv.replace_range(
@@ -381,6 +398,11 @@ class UrtextEditor(BaseEditor):
 			items=self._UrtextProjectList.current_project.sort_for_node_browser())
 		self.autoCompleter.set_action(self.insert_link_to_node)
 		self.autoCompleter.show()
+
+	def insert_meta_dash(self, sender):
+		self.tv.replace_range(
+			self.tv.selected_range, 
+			' - ')
 
 	def insert_link_to_node(self, title):
 		link = self._UrtextProjectList.build_contextual_link(title)

@@ -7,6 +7,7 @@ urtext_theme_dark = {
     'dynamic_definition_wrapper' :  colors['grey6'],
     'background_color' :            colors['black'],
     'foreground_color' :            colors['white'],
+    'highlight_color':              colors['highlight_yellow'],
     'function_names' :              colors['lightgray'],
     'keys' :                        colors['red'],
     'values' :                      colors['blue_brighter'],

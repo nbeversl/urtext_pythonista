@@ -7,6 +7,7 @@ urtext_theme_light = {
     'dynamic_definition_wrapper' :  colors['grey6'],
     'background_color' :            colors['paper'],
     'foreground_color' :            colors['grey5'],
+    'highlight_color':              colors['highlight_yellow'],
     'function_names' :              colors['lightgray'],
     'keys' :                        colors['red'],
     'values' :                      colors['blue_brighter'],
