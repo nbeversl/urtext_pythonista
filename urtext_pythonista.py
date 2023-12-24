@@ -350,13 +350,20 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(selection, '{   }')
 		self.tv.selected_range = (selection[0]+2, selection[0]+2)
 
-	def new_node(self, sender):        
-		new_node = self._UrtextProjectList.current_project.new_file_node(
-			path=self._UrtextProjectList.current_project.entry_path)
-		
-		self.open_file(new_node['filename'])
-		self.tv.selected_range = (new_node['cursor_pos'], new_node['cursor_pos'])
-		self.tv.begin_editing()
+	def new_node(self, sender):
+		path = None
+		if self._UrtextProjectList.current_project.entry_path:
+			path = self._UrtextProjectList.current_project.entry_path
+		elif self.urtext_project_path:
+			path = self.urtext_project_path
+		if path:
+			new_node = self._UrtextProjectList.current_project.new_file_node(
+				path=path)		
+			self.open_file(new_node['filename'])
+			self.tv.selected_range = (
+				new_node['cursor_pos'],
+				new_node['cursor_pos'])
+			self.tv.begin_editing()
 
 	def meta_autocomplete(self, sender): #works	
 		self.autoCompleter.set_items(
@@ -365,20 +372,24 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def search_node_title(self, sender):
+		self.node_browser_open = True
 		self.autoCompleter.set_items(
 			self._UrtextProjectList.current_project.sort_for_node_browser())
-		self.autoCompleter.set_action(
-			self._UrtextProjectList.current_project.open_node)
+		self.autoCompleter.set_action(self._set_node_browser_false_and_open_node)
 		self.autoCompleter.show()
 		if not self._UrtextProjectList.current_project.compiled:
 			self.thread_pool.submit(self._refresh_node_browser_until_compiled)
 
+	def _set_node_browser_false_and_open_node(self, node_id):
+		self.node_browser_open = False
+		self._UrtextProjectList.current_project.open_node(node_id)
+
 	def _refresh_node_browser_until_compiled(self):
 		while not self._UrtextProjectList.current_project.compiled:
 			time.sleep(1)
-			self.autoCompleter.set_items(
-				self._UrtextProjectList.current_project.sort_for_node_browser())
-
+			if self.node_browser_open:
+				self.autoCompleter.set_items(
+					self._UrtextProjectList.current_project.sort_for_node_browser())
 
 	def insert_meta(self, text):
 		self.tv.replace_range(
@@ -416,8 +427,6 @@ class UrtextEditor(BaseEditor):
 			items=self._UrtextProjectList.current_project.sort_for_node_browser())
 		self.autoCompleter.set_action(self.insert_pointer_to_node)
 		self.autoCompleter.show()
-
-	
 
 	def nav_back(self, sender):
 		if 'NAVIGATION' in self._UrtextProjectList.extensions:
