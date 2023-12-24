@@ -48,7 +48,6 @@ class UrtextEditor(BaseEditor):
 			'set_buffer': self.set_buffer,
 			'close_file' : self.close_file,
 		}
-		self.download_to_local()
 		self._UrtextProjectList = ProjectList(
 			self.urtext_project_path,
 			editor_methods=editor_methods)
@@ -111,13 +110,6 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(
 			self.tv.selected_range, 
 			text)
-
-	def download_to_local(self):
-		url = nsurl('file://' + self.urtext_project_path.replace(' ','%20'))
-		NSFileManager = ObjCClass('NSFileManager').defaultManager()
-		ret = NSFileManager.startDownloadingUbiquitousItemAtURL_error_(
-			url, 
-			None)
 
 	def get_buffer(self):
 		return self.tv.text
@@ -257,14 +249,17 @@ class UrtextEditor(BaseEditor):
 		self._UrtextProjectList.set_current_project(selection)
 
 	def manual_save(self, sender):
-		self.urtext_save()
+		self.urtext_save(self.current_open_file)
 		console.hud_alert('Saved','success',0.5)
 
-	def urtext_save(self):
-		self.download_to_local()
-		if self.save(None, save_as=False, handle_changed_contents=False):
-			self._UrtextProjectList.on_modified(
-				self.current_open_file)
+	def urtext_save(self, filename):
+		if filename == self.current_open_file:
+			if self.save(None,
+				save_as=False, 
+				handle_changed_contents=False):
+				
+				self._UrtextProjectList.on_modified(
+					self.current_open_file)
 
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
@@ -295,7 +290,7 @@ class UrtextEditor(BaseEditor):
 			return None
 		
 		if save_first and self.current_open_file != filename:
-		 	self.urtext_save()
+		 	self.urtext_save(self.current_open_file)
 
 		contents = self.get_file_contents(filename)
 		# prevents issue where the text area is too big
