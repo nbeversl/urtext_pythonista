@@ -66,7 +66,7 @@ class UrtextEditor(BaseEditor):
 			'h' : self.open_home,
 			';' : self.new_node,
 			'S' : self.manual_save,
-			'{' : self.new_inline_node,
+			'{..}' : self.new_inline_node,
 			'->': self.tab,
 			'::': self.meta_autocomplete,
 			'M' : self.main_menu,
@@ -111,13 +111,17 @@ class UrtextEditor(BaseEditor):
 			self.tv.selected_range, 
 			text)
 
-	def get_buffer(self):
-		return self.tv.text
+	def get_buffer(self, filename):
+		if filename == self.current_open_file:
+			return self.tv.text
 
 	def set_buffer(self, filename, contents):
 		if filename == self.current_open_file:
-			self.tv.scroll_enabled = False     
+			position = self.tv.selected_range[0]
+			self.tv.scroll_enabled = False
+			self.tv.text = ''     
 			self.tv.text = contents
+			self.tv.selected_range = (position, position)
 			self.tv.scroll_enabled = True
 			self.saved = False
 			self.refresh_syntax_highlighting()
@@ -147,12 +151,16 @@ class UrtextEditor(BaseEditor):
 		self.tv.end_editing()
 
 	def search_all_projects(self, sender):
-		self.autoCompleter.set_items(items=self._UrtextProjectList.titles())
+		self.autoCompleter.set_items(
+			self._UrtextProjectList.titles(),
+			'all_projects')
 		self.autoCompleter.set_action(self._UrtextProjectList.current_project.open_node)
 		self.autoCompleter.show()
 
 	def main_menu(self, sender):
-		self.autoCompleter.set_items(items=self.menu_options)
+		self.autoCompleter.set_items(
+			self.menu_options,
+			'main_menu')
 		self.autoCompleter.set_action(self.run_chosen_option)
 		self.autoCompleter.show()
 
@@ -202,7 +210,10 @@ class UrtextEditor(BaseEditor):
 	def add_hash_meta(self, sender):
 		hash_values = self._UrtextProjectList.current_project.get_all_values_for_key(
 				self._UrtextProjectList.current_project.settings['hash_key'])
-		self.autoCompleter.set_items(hash_values)
+		self.autoCompleter.set_items(
+			hash_values,
+			'hash_values',
+			allow_new=True)
 		self.autoCompleter.set_action(self.insert_hash_meta)
 		self.autoCompleter.show()
 
@@ -240,7 +251,9 @@ class UrtextEditor(BaseEditor):
 		console.hud_alert('Project List Reloaded' ,'success',1)
 
 	def select_project(self, sender): 
-		self.autoCompleter.set_items(self._UrtextProjectList.project_titles())
+		self.autoCompleter.set_items(
+			self._UrtextProjectList.project_titles(),
+			'project_titles')
 		self.autoCompleter.set_action(self.switch_project)
 		self.autoCompleter.show()
 
@@ -264,15 +277,15 @@ class UrtextEditor(BaseEditor):
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
 
-	def refresh_syntax_highlighting(self, highlight_range=None):
-		position = self.tv.selected_range
-		self.tv.scroll_enabled= False     
-		self.syntax_highlighter.setAttribs(self.tv, self.tvo, highlight_range=highlight_range)
-		self.tv.scroll_enabled= True
-		try:
-			self.tv.selected_range = position
-		except ValueError:
-			pass
+	def refresh_syntax_highlighting(self,
+		highlight_range=None):
+		
+		self.tv.scroll_enabled = False     
+		self.syntax_highlighter.setAttribs(
+			self.tv,
+			self.tvo,
+			highlight_range=highlight_range)		
+		self.tv.scroll_enabled = True
 	
 	def open_file(
 		self, 
@@ -293,10 +306,7 @@ class UrtextEditor(BaseEditor):
 		 	self.urtext_save(self.current_open_file)
 
 		contents = self.get_file_contents(filename)
-		# prevents issue where the text area is too big
-		# for the new contents:k
 		self.tv.text=''
-		#
 		self.tv.text=contents
 		self.current_open_file_original_contents = contents
 		self.current_open_file = filename
@@ -311,7 +321,9 @@ class UrtextEditor(BaseEditor):
 		self.open_file(filename)
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1))
-		self.refresh_syntax_highlighting(highlight_range=node_range)
+		self.refresh_syntax_highlighting(
+			highlight_range=node_range)
+		self.tv.begin_editing()
 		self.thread_pool.submit(self.delay_unhighlight)
 
 	def delay_unhighlight(self):
@@ -367,14 +379,16 @@ class UrtextEditor(BaseEditor):
 
 	def meta_autocomplete(self, sender): #works	
 		self.autoCompleter.set_items(
-			self._UrtextProjectList.get_all_meta_pairs())
+			self._UrtextProjectList.get_all_meta_pairs(),
+			'meta_pairs')
 		self.autoCompleter.set_action(self.insert_meta)
 		self.autoCompleter.show()
 
 	def search_node_title(self, sender):
 		self.node_browser_open = True
 		self.autoCompleter.set_items(
-			self._UrtextProjectList.current_project.sort_for_node_browser())
+			self._UrtextProjectList.current_project.sort_for_node_browser(),
+			'node_browser')
 		self.autoCompleter.set_action(self._set_node_browser_false_and_open_node)
 		self.autoCompleter.show()
 		if not self._UrtextProjectList.current_project.compiled:
@@ -387,9 +401,10 @@ class UrtextEditor(BaseEditor):
 	def _refresh_node_browser_until_compiled(self):
 		while not self._UrtextProjectList.current_project.compiled:
 			time.sleep(1)
-			if self.node_browser_open:
+			if self.autoCompleter.showing == 'node_browser':
 				self.autoCompleter.set_items(
-					self._UrtextProjectList.current_project.sort_for_node_browser())
+					self._UrtextProjectList.current_project.sort_for_node_browser(),
+					'node_browser')
 
 	def insert_meta(self, text):
 		self.tv.replace_range(
@@ -398,7 +413,8 @@ class UrtextEditor(BaseEditor):
 
 	def link_to_node(self, sender):
 		self.autoCompleter.set_items(
-			items=self._UrtextProjectList.current_project.sort_for_node_browser())
+			self._UrtextProjectList.current_project.sort_for_node_browser(),
+			'node_browser')
 		self.autoCompleter.set_action(self.insert_link_to_node)
 		self.autoCompleter.show()
 
@@ -424,7 +440,8 @@ class UrtextEditor(BaseEditor):
 
 	def point_to_node(self, title):
 		self.autoCompleter.set_items(
-			items=self._UrtextProjectList.current_project.sort_for_node_browser())
+			self._UrtextProjectList.current_project.sort_for_node_browser(),
+			'node_browser')
 		self.autoCompleter.set_action(self.insert_pointer_to_node)
 		self.autoCompleter.show()
 
@@ -463,7 +480,9 @@ class UrtextEditor(BaseEditor):
 				contents=line)
 		if end_of_line:
 			if replace:
-				self.tv.replace_range( (end_of_line-len(line),end_of_line) ,contents)
+				self.tv.replace_range( 
+					(end_of_line-len(line), end_of_line),
+					contents)
 			else:
 				self.tv.replace_range(
 					(end_of_line,end_of_line), '\n' + contents + '\n')
@@ -479,7 +498,8 @@ class UrtextEditor(BaseEditor):
 
 	def search_keywords(self, sender):
 		self.autoCompleter.set_items(
-			self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_keywords())
+			self._UrtextProjectList.current_project.extensions['RAKE_KEYWORDS'].get_keywords(),
+			'rake_keywords')
 		self.autoCompleter.set_action(self.select_nodes_from_keywords)     		
 		self.autoCompleter.show()
 
@@ -491,7 +511,9 @@ class UrtextEditor(BaseEditor):
 				selections[0])
 		else:
 			self.autoCompleter.hide()
-			self.autoCompleter.set_items(selections)
+			self.autoCompleter.set_items(
+				selections,
+				'metadata_keywords')
 			self.autoCompleter.set_action(
 				self._UrtextProjectList.current_project.open_node)
 			self.autoCompleter.show()
@@ -509,7 +531,7 @@ class UrtextEditor(BaseEditor):
 				):
 				titles[self._UrtextProjectList.current_project.nodes[t].title] = (
 					self._UrtextProjectList.current_project.title, t)
-		self.autoCompleter.set_items(titles)
+		self.autoCompleter.set_items(titles, 'free_associate')
 		self.autoCompleter.set_action(
 			self._UrtextProjectList.current_project.open_node)   
 		self.show_search_and_dropdown()
