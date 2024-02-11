@@ -35,4 +35,10 @@ urtext_theme_light = {
     'button_line_background_color': '#000000',
     'button_background_color' :     "#515151",
     'button_tint_color' :           '#ffffff',
+    'autocompleter': {
+        'background_color' : "#ffffff",
+        'foreground_color' : "#000000",
+        'search_field_background_color': colors['white'],
+        'search_field_border_color': 'black',
+    }
 }
