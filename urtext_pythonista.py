@@ -347,9 +347,9 @@ class UrtextEditor(BaseEditor):
 		if not self.current_open_file:
 			return None
 		self._UrtextProjectList.current_project.editor_copy_link_to_node(
-            self.get_buffer(),
             self.tv.selected_range[0],
-            self.current_open_file)
+            self.current_open_file,
+            include_project=include_project)
 
 	def copy_link_to_current_node_with_project(self, sender):
 		return self.copy_link_to_current_node(None, include_project=True)
@@ -463,6 +463,7 @@ class UrtextEditor(BaseEditor):
 			) == 1:
 			self._UrtextProjectList.current_project.delete_file(
 				self.current_open_file)
+		self.begin_editing()
 
 	def compact_node(self, sender):
 		selection = self.tv.selected_range
