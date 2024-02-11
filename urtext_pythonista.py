@@ -221,6 +221,7 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(
 			self.tv.selected_range, 
 			'#'+value+' ')
+		self.tv.begin_editing()
 		
 	def manual_timestamp(self, sender):
 		position = self.tv.selected_range[0]
@@ -370,7 +371,7 @@ class UrtextEditor(BaseEditor):
 			path = self.urtext_project_path
 		if path:
 			new_node = self._UrtextProjectList.current_project.new_file_node(
-				path=path)		
+				path=path)
 			self.open_file(new_node['filename'])
 			self.tv.selected_range = (
 				new_node['cursor_pos'],
@@ -463,7 +464,7 @@ class UrtextEditor(BaseEditor):
 			) == 1:
 			self._UrtextProjectList.current_project.delete_file(
 				self.current_open_file)
-		self.begin_editing()
+		self.tv.begin_editing()
 
 	def compact_node(self, sender):
 		selection = self.tv.selected_range
