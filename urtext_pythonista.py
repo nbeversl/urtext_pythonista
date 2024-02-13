@@ -360,7 +360,9 @@ class UrtextEditor(BaseEditor):
 	
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
-		self.tv.replace_range(selection, '{   }')
+		selected_text = self.tv.text[selection[0]:selection[1]]
+		self.tv.replace_range(selection, ''.join([
+			'{ ', selected_text,' }']))
 		self.tv.selected_range = (selection[0]+2, selection[0]+2)
 
 	def new_node(self, sender):
@@ -479,7 +481,7 @@ class UrtextEditor(BaseEditor):
 			# If it is not a compact node, make it one and add an ID
 			replace = True
 			contents = self._UrtextProjectList.current_project.add_compact_node(
-				contents=line)
+				contents='\n'+line)
 		if end_of_line:
 			if replace:
 				self.tv.replace_range( 

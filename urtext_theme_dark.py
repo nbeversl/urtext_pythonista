@@ -42,5 +42,6 @@ urtext_theme_dark = {
         'foreground_color' : "#ffffff",
         'search_field_background_color': colors['black'],
         'search_field_border_color': 'white',
+        'separator_color': 'white',
     }
 }

@@ -40,5 +40,6 @@ urtext_theme_light = {
         'foreground_color' : "#000000",
         'search_field_background_color': colors['white'],
         'search_field_border_color': 'black',
+        'separator_color': 'black',
     }
 }
