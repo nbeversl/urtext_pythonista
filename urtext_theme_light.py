@@ -17,11 +17,15 @@ urtext_theme_light = {
     'metadata_values' :             colors['blue_brighter'],
     'metadata_separator' :          colors['grey5'],
     'node_pointers' :               colors['blue_brighter'],
+    'link_modifier_file':           colors['red'],
+    'link_modifier_action':         colors['bright_green2'],
+    'link_modifier_missing':        colors['yellow'],
     'error_messages' :              colors['red'],
     'timestamp':                    colors['blue_brighter'],
     'font' : {
         'regular' : fonts['Courier New'],
         'bold' :    fonts['Courier New Bold'],
+        'bold italic': fonts['Courier New Bold Italic'],
     },
     'metadata_flags' :              fonts['Courier New Bold'],
     'wrappers' : [

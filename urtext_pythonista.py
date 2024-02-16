@@ -182,7 +182,7 @@ class UrtextEditor(BaseEditor):
 		full_line, col_pos = get_full_line(file_pos, self.tv)
 		r = self._UrtextProjectList.current_project.extensions[
 			'POP_NODE'
-			].pop_node(
+			].pop_node_from_editor(
 				full_line,
 				self.current_open_file,
 				file_pos)
@@ -201,9 +201,9 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(self.tv.selected_range, '\t')
 
 	def move_file(self, sender):
-		self.project_list.items = self._UrtextProjectList.project_titles()
-		self.project_list.action = self.execute_move_file
-		self.project_selector.height = 35*len(self.project_list.items)
+		self._UrtextProjectList.items = self._UrtextProjectList.project_titles()
+		self._UrtextProjectList.action = self.execute_move_file
+		self.project_selector.height = 35*len(self._UrtextProjectList.items)
 		self.project_selector.hidden = False
 		self.project_selector.bring_to_front()
 
@@ -233,7 +233,7 @@ class UrtextEditor(BaseEditor):
 	def execute_move_file(self, sender):
 		self.project_selector.hidden = True    
 		selection = sender.selected_row
-		selected_project = self.project_list.items[selection]
+		selected_project = self._UrtextProjectList.items[selection]
 		if self._UrtextProjectList.move_file(self.current_open_file, selected_project):
 			self.current_open_file = None
 			console.hud_alert('File Moved' ,'success',1)
@@ -458,14 +458,14 @@ class UrtextEditor(BaseEditor):
 
 	@ui.in_background
 	def delete_node(self, sender):
-		if console.alert(
-			'Delete'
-			'',
-			'Delete this file node?',
-			'Yes'
-			) == 1:
-			self._UrtextProjectList.current_project.delete_file(
-				self.current_open_file)
+		# if console.alert(
+		# 	'Delete'
+		# 	'',
+		# 	'Delete this file node?',
+		# 	'Yes'
+		# 	) == 1:
+		self._UrtextProjectList.current_project.delete_file(
+			self.current_open_file)
 		self.tv.begin_editing()
 
 	def compact_node(self, sender):

@@ -1,24 +1,66 @@
 import urtext.syntax as syntax
 import re
-
 class UrtextSyntax:
 
     def __init__(self, theme):
         
         self.theme = theme
         self.name = 'Urtext'
+
+        any_link_or_pointer_syntax = {
+            'pattern': syntax.any_link_or_pointer_c,       
+            'self': {
+                'font' : theme['font']['bold'],
+                },
+            'groups' : {
+                    6 : { 
+                        'color': theme['node_pointers']
+                        },
+                    },
+            'inside': [
+                { 
+                    'pattern':syntax.metadata_separator_pattern_c, 
+                    'self': {
+                        'color': theme['metadata_separator'],
+                        }
+                },
+                {
+                    'pattern': syntax.link_modifiers_regex_c['action'],
+                    'self': {
+                        'color': theme['link_modifier_action']
+                    }
+                },
+                {
+                    'pattern': syntax.link_modifiers_regex_c['missing'],
+                    'self': {
+                        'color': theme['link_modifier_missing']
+                    }
+                },
+                {
+                    'pattern': syntax.link_modifiers_regex_c['file'],
+                    'self': {
+                        'color': theme['link_modifier_file']
+                    }
+                }
+            ],
+        }
+
+
+
         self.syntax = [
    
             {   'pattern': syntax.dynamic_def_c,
                 'self': {
-                	   'color':theme['dynamic_definition_wrapper']
+                	   'color':theme['dynamic_definition_wrapper'],
+                       'font' : theme['font']['bold italic'],
                 },
 
                 'inside' : [ 
 
                     {   'pattern': syntax.function_c, 
                         'self': {
-                            'color' : theme['function_names']
+                            'color' : theme['function_names'],
+                            'font' : theme['font']['bold'],
                         },
                         'inside' : [
                             {
@@ -28,9 +70,13 @@ class UrtextSyntax:
                                     },
                             },
                         ]
-                    }
+                    },
+                    any_link_or_pointer_syntax,
                 ]
             },
+
+            any_link_or_pointer_syntax,
+
             {
                 'pattern': syntax.sh_metadata_key_c, 
                 'self': {
@@ -91,18 +137,45 @@ class UrtextSyntax:
                     },
             },
             {
-                'pattern': syntax.node_link_or_pointer_c,       
+                'pattern': syntax.any_link_or_pointer_c,       
                 'self': {
                     'font' : theme['font']['bold'],
                     },
                 'groups' : {
-                        5 : { 
+                        6 : { 
                             'color': theme['node_pointers']
                             },
-                        }   
+                        },
+                'inside': [
+                    { 
+                        'pattern':syntax.metadata_separator_pattern_c, 
+                        'self': {
+                            'color': theme['metadata_separator'],
+                            }
+                    },
+                    {
+                        'pattern': syntax.link_modifiers_regex_c['action'],
+                        'self': {
+                            'color': theme['link_modifier_action']
+                        }
+                    },
+                    {
+                        'pattern': syntax.link_modifiers_regex_c['missing'],
+                        'self': {
+                            'color': theme['link_modifier_missing']
+                        }
+                    },
+                    {
+                        'pattern': syntax.link_modifiers_regex_c['file'],
+                        'self': {
+                            'color': theme['link_modifier_file']
+                        }
+                    }
+                ],
             },
             {  
-                'pattern':syntax.node_title_c,
+                # from ST syntax definition
+                'pattern': re.compile('(?!<=\{)((([^\|>\{\}\n\r_])|(?<!\s)_)+)(\s_)(\s|$)'),
                 'self': {
                     'font' : theme['font']['bold']
                 },
