@@ -1,5 +1,5 @@
 from urtext.project_list import ProjectList
-from urtext.project import match_compact_node
+from urtext.utils import match_compact_node
 from sublemon.editor import BaseEditor
 import os
 import time
@@ -154,7 +154,8 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.set_items(
 			self._UrtextProjectList.titles(),
 			'all_projects')
-		self.autoCompleter.set_action(self._UrtextProjectList.current_project.open_node)
+		self.autoCompleter.set_action(
+			self._UrtextProjectList.current_project.open_node)
 		self.autoCompleter.show()
 
 	def main_menu(self, sender):
@@ -180,22 +181,20 @@ class UrtextEditor(BaseEditor):
 	def pop_node(self, sender):
 		file_pos = self.tv.selected_range[0] + 1
 		full_line, col_pos = get_full_line(file_pos, self.tv)
-		r = self._UrtextProjectList.current_project.extensions[
-			'POP_NODE'
-			].pop_node_from_editor(
-				full_line,
+		self._UrtextProjectList.current_project.run_directive(
+				'POP_NODE',
 				self.current_open_file,
 				file_pos)
 
 	def pull_node(self, sender):
 		file_pos = self.tv.selected_range[0] + 1
 		full_line, col_pos = get_full_line(file_pos, self.tv)
-		self._UrtextProjectList.current_project.extensions[
-                'PULL_NODE'
-                ].pull_node(
-                    full_line,
-                    self.current_open_file,
-                    file_pos)
+		self._UrtextProjectList.current_project.run_directive(
+				'PULL_NODE',
+				full_line,
+				col_pos,
+				self.current_open_file,
+				file_pos)
 
 	def tab(self, sender):
 		self.tv.replace_range(self.tv.selected_range, '\t')
@@ -209,7 +208,7 @@ class UrtextEditor(BaseEditor):
 
 	def add_hash_meta(self, sender):
 		hash_values = self._UrtextProjectList.current_project.get_all_values_for_key(
-				self._UrtextProjectList.current_project.settings['hash_key'])
+			self._UrtextProjectList.current_project.get_setting('hash_key'))
 		self.autoCompleter.set_items(
 			hash_values,
 			'hash_values',
@@ -304,7 +303,7 @@ class UrtextEditor(BaseEditor):
 			return None
 		
 		if save_first and self.current_open_file != filename:
-		 	self.urtext_save(self.current_open_file)
+			self.urtext_save(self.current_open_file)
 
 		contents = self.get_file_contents(filename)
 		self.tv.text=''
@@ -348,9 +347,9 @@ class UrtextEditor(BaseEditor):
 		if not self.current_open_file:
 			return None
 		self._UrtextProjectList.current_project.editor_copy_link_to_node(
-            self.tv.selected_range[0],
-            self.current_open_file,
-            include_project=include_project)
+			self.tv.selected_range[0],
+			self.current_open_file,
+			include_project=include_project)
 
 	def copy_link_to_current_node_with_project(self, sender):
 		return self.copy_link_to_current_node(None, include_project=True)
@@ -388,14 +387,15 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def search_node_title(self, sender):
-		self.node_browser_open = True
-		self.autoCompleter.set_items(
-			self._UrtextProjectList.current_project.sort_for_node_browser(),
-			'node_browser')
-		self.autoCompleter.set_action(self._set_node_browser_false_and_open_node)
-		self.autoCompleter.show()
-		if not self._UrtextProjectList.current_project.compiled:
-			self.thread_pool.submit(self._refresh_node_browser_until_compiled)
+		if self._UrtextProjectList.current_project:
+			self.node_browser_open = True
+			self.autoCompleter.set_items(
+				self._UrtextProjectList.current_project.sort_for_node_browser(),
+				'node_browser')
+			self.autoCompleter.set_action(self._set_node_browser_false_and_open_node)
+			self.autoCompleter.show()
+			if not self._UrtextProjectList.current_project.compiled:
+				self.thread_pool.submit(self._refresh_node_browser_until_compiled)
 
 	def _set_node_browser_false_and_open_node(self, node_id):
 		self.node_browser_open = False
@@ -449,12 +449,10 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def nav_back(self, sender):
-		if 'NAVIGATION' in self._UrtextProjectList.extensions:
-			self._UrtextProjectList.extensions['NAVIGATION'].reverse()
+		self._UrtextProjectList.run_directive('NAVIGATION', 'reverse')
 
 	def nav_forward(self, sender):
-		if 'NAVIGATION' in self._UrtextProjectList.extensions:
-			self._UrtextProjectList.extensions['NAVIGATION'].forward()
+		self._UrtextProjectList.run_directive('NAVIGATION', 'forward')
 
 	@ui.in_background
 	def delete_node(self, sender):
@@ -470,13 +468,14 @@ class UrtextEditor(BaseEditor):
 
 	def compact_node(self, sender):
 		selection = self.tv.selected_range
-		contents = self.tv.text[selection[0]:selection[1]]
 		end_of_line = self.find_end_of_line(selection[1])
 		line, col_pos = get_full_line(selection[1], self.tv)
-
+		contents = ''
 		if match_compact_node(line):
 			replace = False
 			contents = self._UrtextProjectList.current_project.add_compact_node()
+		elif end_of_line == len(self.tv.text):
+			replace = False
 		else:
 			# If it is not a compact node, make it one and add an ID
 			replace = True

@@ -7,8 +7,8 @@ class UrtextSyntax:
         self.theme = theme
         self.name = 'Urtext'
 
-        any_link_or_pointer_syntax = {
-            'pattern': syntax.any_link_or_pointer_c,       
+        node_link_or_pointer_syntax = {
+            'pattern': syntax.node_link_or_pointer_c,       
             'self': {
                 'font' : theme['font']['bold'],
                 },
@@ -71,11 +71,11 @@ class UrtextSyntax:
                             },
                         ]
                     },
-                    any_link_or_pointer_syntax,
+                    node_link_or_pointer_syntax,
                 ]
             },
 
-            any_link_or_pointer_syntax,
+            node_link_or_pointer_syntax,
 
             {
                 'pattern': syntax.sh_metadata_key_c, 
@@ -137,7 +137,7 @@ class UrtextSyntax:
                     },
             },
             {
-                'pattern': syntax.any_link_or_pointer_c,       
+                'pattern': syntax.node_link_or_pointer_c,       
                 'self': {
                     'font' : theme['font']['bold'],
                     },
