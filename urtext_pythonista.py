@@ -321,8 +321,7 @@ class UrtextEditor(BaseEditor):
 		self.open_file(filename)
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1))
-		self.refresh_syntax_highlighting(
-			highlight_range=node_range)
+		self.refresh_syntax_highlighting(highlight_range=node_range)
 		self.tv.begin_editing()
 		self.thread_pool.submit(self.delay_unhighlight)
 
@@ -521,23 +520,23 @@ class UrtextEditor(BaseEditor):
 				self._UrtextProjectList.current_project.open_node)
 			self.autoCompleter.show()
 
-	def free_associate(self, sender):
-		full_line, col_pos = get_full_line(self.tv.selected_range[0], self.tv)
-		titles = {}
+	# def free_associate(self, sender):
+	# 	full_line, col_pos = get_full_line(self.tv.selected_range[0], self.tv)
+	# 	titles = {}
 
-		for t in self._UrtextProjectList.current_project.extensions[
-			'RAKE_KEYWORDS'
-			].get_assoc_nodes( 
-				full_line,
-				self.current_open_file,
-				self.tv.selected_range[0],
-				):
-				titles[self._UrtextProjectList.current_project.nodes[t].title] = (
-					self._UrtextProjectList.current_project.title, t)
-		self.autoCompleter.set_items(titles, 'free_associate')
-		self.autoCompleter.set_action(
-			self._UrtextProjectList.current_project.open_node)   
-		self.show_search_and_dropdown()
+	# 	for t in self._UrtextProjectList.current_project.extensions[
+	# 		'RAKE_KEYWORDS'
+	# 		].get_assoc_nodes( 
+	# 			full_line,
+	# 			self.current_open_file,
+	# 			self.tv.selected_range[0],
+	# 			):
+	# 			titles[self._UrtextProjectList.current_project.nodes[t].title] = (
+	# 				self._UrtextProjectList.current_project.title, t)
+	# 	self.autoCompleter.set_items(titles, 'free_associate')
+	# 	self.autoCompleter.set_action(
+	# 		self._UrtextProjectList.current_project.open_node)   
+	# 	self.show_search_and_dropdown()
 
 	def jump_to_def(self, sender):
 		target_id = self.get_node_id()
