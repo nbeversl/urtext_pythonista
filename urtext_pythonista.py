@@ -83,7 +83,7 @@ class UrtextEditor(BaseEditor):
 			'c' : self.copy_link_to_current_node,
 			'^c': self.copy_link_to_current_node_with_project,
 			'k' : self.search_keywords,
-			'^' : self.free_associate,
+			# '^' : self.free_associate,
 			'| >': self.link_to_new_node,
 			']]' : self.jump_to_def
 			})
