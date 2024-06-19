@@ -83,7 +83,6 @@ class UrtextEditor(BaseEditor):
 			'c' : self.copy_link_to_current_node,
 			'^c': self.copy_link_to_current_node_with_project,
 			'k' : self.search_keywords,
-			# '^' : self.free_associate,
 			'| >': self.link_to_new_node,
 			']]' : self.jump_to_def
 			})
@@ -270,10 +269,17 @@ class UrtextEditor(BaseEditor):
 			if self.save(None,
 				save_as=False, 
 				handle_changed_contents=False):
-				
-				self._UrtextProjectList.on_modified(
-					self.current_open_file)
+				file_changed = self._UrtextProjectList.on_modified(self.current_open_file)
+				if self._UrtextProjectList.is_async:
+					file_changed = file_changed.result()
+				if file_changed:
+					self.refresh_current_file()
 
+	def refresh_current_file(self):
+		self.tv.scroll_enabled = False  
+		self.open_file_to_position(self.current_open_file, self.tv.selected_range[0])
+		self.tv.scroll_enabled = True
+ 
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
 
