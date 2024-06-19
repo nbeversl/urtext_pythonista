@@ -261,19 +261,20 @@ class UrtextEditor(BaseEditor):
 		self._UrtextProjectList.set_current_project(selection)
 
 	def manual_save(self, sender):
-		self.urtext_save(self.current_open_file)
+		self.urtext_save(self.current_open_file, refresh_file=True)
 		console.hud_alert('Saved','success',0.5)
 
-	def urtext_save(self, filename):
+	def urtext_save(self, filename, refresh_file=False):
 		if filename == self.current_open_file:
 			if self.save(None,
 				save_as=False, 
 				handle_changed_contents=False):
 				file_changed = self._UrtextProjectList.on_modified(self.current_open_file)
-				if self._UrtextProjectList.is_async:
-					file_changed = file_changed.result()
-				if file_changed:
-					self.refresh_current_file()
+				if refresh_file:
+					if self._UrtextProjectList.is_async:
+						file_changed = file_changed.result()
+					if file_changed:
+						self.refresh_current_file()
 
 	def refresh_current_file(self):
 		self.tv.scroll_enabled = False  
