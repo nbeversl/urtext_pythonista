@@ -18,34 +18,43 @@ class UrtextSyntax:
                         },
                     },
             'inside': [
-                { 
-                    'pattern':syntax.metadata_separator_pattern_c, 
-                    'self': {
-                        'color': theme['metadata_separator'],
-                        }
-                },
                 {
-                    'pattern': syntax.link_modifiers_regex_c['action'],
+                    'pattern': syntax.node_link_modifiers_regex_c['action'],
                     'self': {
-                        'color': theme['link_modifier_action']
+                        'color': theme['node_link_modifier_action']
                     }
                 },
                 {
-                    'pattern': syntax.link_modifiers_regex_c['missing'],
+                    'pattern': syntax.node_link_modifiers_regex_c['missing'],
                     'self': {
-                        'color': theme['link_modifier_missing']
+                        'color': theme['node_link_modifier_missing']
                     }
                 },
-                {
-                    'pattern': syntax.link_modifiers_regex_c['file'],
-                    'self': {
-                        'color': theme['link_modifier_file']
-                    }
-                }
             ],
         }
 
-
+        file_link_syntax = {
+            'pattern': syntax.file_link_c,       
+            'self': {
+                'font' : theme['font']['bold'],
+                },
+            'groups' : {
+                    },
+            'inside': [
+                {
+                    'pattern': syntax.file_link_modifiers['file'],
+                    'self': {
+                        'color': theme['file_link_modifier_file']
+                    }
+                },
+                {
+                    'pattern': syntax.file_link_modifiers['missing'],
+                    'self': {
+                        'color': theme['file_link_modifier_missing']
+                    }
+                },
+            ],
+        }
 
         self.syntax = [
    
@@ -72,10 +81,12 @@ class UrtextSyntax:
                         ]
                     },
                     node_link_or_pointer_syntax,
+                    file_link_syntax,
                 ]
             },
 
             node_link_or_pointer_syntax,
+            file_link_syntax,
 
             {
                 'pattern': syntax.sh_metadata_key_c, 
@@ -154,23 +165,17 @@ class UrtextSyntax:
                             }
                     },
                     {
-                        'pattern': syntax.link_modifiers_regex_c['action'],
+                        'pattern': syntax.node_link_modifiers_regex_c['action'],
                         'self': {
-                            'color': theme['link_modifier_action']
+                            'color': theme['node_link_modifier_action']
                         }
                     },
                     {
-                        'pattern': syntax.link_modifiers_regex_c['missing'],
+                        'pattern': syntax.node_link_modifiers_regex_c['missing'],
                         'self': {
-                            'color': theme['link_modifier_missing']
+                            'color': theme['node_link_modifier_missing']
                         }
                     },
-                    {
-                        'pattern': syntax.link_modifiers_regex_c['file'],
-                        'self': {
-                            'color': theme['link_modifier_file']
-                        }
-                    }
                 ],
             },
             {  
