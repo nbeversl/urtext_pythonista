@@ -42,13 +42,13 @@ class UrtextSyntax:
                     },
             'inside': [
                 {
-                    'pattern': syntax.file_link_modifiers['file'],
+                    'pattern': re.compile(syntax.file_link_modifiers['file']),
                     'self': {
                         'color': theme['file_link_modifier_file']
                     }
                 },
                 {
-                    'pattern': syntax.file_link_modifiers['missing'],
+                    'pattern': re.compile(re.escape(syntax.file_link_modifiers['missing'])),
                     'self': {
                         'color': theme['file_link_modifier_missing']
                     }
@@ -60,7 +60,7 @@ class UrtextSyntax:
    
             {   'pattern': syntax.dynamic_def_c,
                 'self': {
-                	   'color':theme['dynamic_definition_wrapper'],
+                	   'color': theme['dynamic_definition_wrapper'],
                        'font' : theme['font']['bold italic'],
                 },
 
