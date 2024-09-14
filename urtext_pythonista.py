@@ -255,6 +255,16 @@ class UrtextEditor(BaseEditor):
 			'project_titles')
 		self.autoCompleter.set_action(self.switch_project)
 		self.autoCompleter.show()
+		self.thread_pool.submit(self._refresh_project_browser_until_compiled)
+
+	def _refresh_project_browser_until_compiled(self):
+		if False in [p.compiled for p in self._UrtextProjectList.projects]:
+			time.sleep(1)
+			if self.autoCompleter.showing == 'project_titles':
+				self.autoCompleter.set_items(
+					self._UrtextProjectList.project_titles(),
+					'project_titles')			
+			self.thread_pool.submit(self._refresh_project_browser_until_compiled)
 
 	def switch_project(self, selection):
 		self.tv.begin_editing()
