@@ -82,7 +82,7 @@ class UrtextEditor(BaseEditor):
 			'*' : self.search_all_projects,
 			'c' : self.copy_link_to_current_node,
 			'^c': self.copy_link_to_current_node_with_project,
-			'k' : self.search_keywords,
+			# 'k' : self.search_keywords,
 			'| >': self.link_to_new_node,
 			']]' : self.jump_to_def
 			})
@@ -136,7 +136,7 @@ class UrtextEditor(BaseEditor):
 		console.open_in(filename)
 
 	def popup(self, message):
-		console.hud_alert(message, 'info', 2)
+		self.thread_pool.submit(console.hud_alert, message, 'info', 2)
 
 	def set_clipboard(self, text):
 		clipboard.set(text)
@@ -207,7 +207,7 @@ class UrtextEditor(BaseEditor):
 
 	def add_hash_meta(self, sender):
 		hash_values = self._UrtextProjectList.current_project.get_all_values_for_key(
-			self._UrtextProjectList.current_project.get_setting('hash_key'))
+			self._UrtextProjectList.current_project.get_single_setting('hash_key').text)
 		self.autoCompleter.set_items(
 			hash_values,
 			'hash_values',
@@ -371,7 +371,10 @@ class UrtextEditor(BaseEditor):
 		return self.copy_link_to_current_node(None, include_project=True)
 
 	def open_home(self, sender):
-		self._UrtextProjectList.current_project.open_home()
+		if self._UrtextProjectList.current_project:
+			self._UrtextProjectList.current_project.open_home()
+		else:
+			self.popup('Still compiling')
 	
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
