@@ -140,7 +140,7 @@ class UrtextEditor(BaseEditor):
 
 	def set_clipboard(self, text):
 		clipboard.set(text)
-		console.hud_alert(text + ' copy to the clipboard', 'info', 2)
+		console.hud_alert(text + ' copied to the clipboard', 'info', 2)
 		self.refresh_syntax_highlighting() # necessary for some reason
 
 	def insert_at_next_line(self, contents):
@@ -153,9 +153,13 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.set_items(
 			self._UrtextProjectList.titles(),
 			'all_projects')
-		self.autoCompleter.set_action(
-			self._UrtextProjectList.current_project.open_node)
+		self.autoCompleter.set_action(self.set_project_and_open_node)
 		self.autoCompleter.show()
+
+	def set_project_and_open_node(self, selection):
+		project, node_id = selection
+		self._UrtextProjectList.set_current_project(project)
+		self._UrtextProjectList.current_project.open_node(node_id)
 
 	def main_menu(self, sender):
 		self.autoCompleter.set_items(
@@ -274,16 +278,20 @@ class UrtextEditor(BaseEditor):
 		self.urtext_save(self.current_open_file, refresh_file=True)
 		console.hud_alert('Saved','success',0.5)
 
-	def urtext_save(self, filename, refresh_file=False):
+	def urtext_save(self, filename, refresh_file=True):
 		if filename == self.current_open_file:
 			if self.save(None,
 				save_as=False, 
 				handle_changed_contents=False):
 				file_changed = self._UrtextProjectList.on_modified(self.current_open_file)
+				print("FILE CHANGED", file_changed)
+				print("REFRESH FILE?", refresh_file)
 				if refresh_file:
 					if self._UrtextProjectList.is_async:
 						file_changed = file_changed.result()
+					print("RESULT", file_changed)
 					if file_changed:
+						print("RESULT", file_changed)
 						self.refresh_current_file()
 
 	def refresh_current_file(self):
@@ -336,6 +344,9 @@ class UrtextEditor(BaseEditor):
 		node_range=[]):
 
 		self.open_file(filename)
+
+		if position == len(self.tv.text):
+			position -= 1 
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1))
 		self.refresh_syntax_highlighting(highlight_range=node_range)
@@ -371,10 +382,7 @@ class UrtextEditor(BaseEditor):
 		return self.copy_link_to_current_node(None, include_project=True)
 
 	def open_home(self, sender):
-		if self._UrtextProjectList.current_project:
-			self._UrtextProjectList.current_project.open_home()
-		else:
-			self.popup('Still compiling')
+		self._UrtextProjectList.current_project.open_home()
 	
 	def new_inline_node(self, sender, locate_inside=True):
 		selection = self.tv.selected_range
@@ -384,14 +392,8 @@ class UrtextEditor(BaseEditor):
 		self.tv.selected_range = (selection[0]+2, selection[0]+2)
 
 	def new_node(self, sender):
-		path = None
-		if self._UrtextProjectList.current_project.entry_path:
-			path = self._UrtextProjectList.current_project.entry_path
-		elif self.urtext_project_path:
-			path = self.urtext_project_path
-		if path:
-			new_node = self._UrtextProjectList.current_project.new_file_node(
-				path=path)
+		if self._UrtextProjectList.current_project:
+			new_node = self._UrtextProjectList.current_project.new_file_node()
 			self.open_file(new_node['filename'])
 			self.tv.selected_range = (
 				new_node['cursor_pos'],
@@ -508,7 +510,9 @@ class UrtextEditor(BaseEditor):
 			else:
 				self.tv.replace_range(
 					(end_of_line,end_of_line), '\n' + contents + '\n')
-				self.tv.selected_range = (end_of_line + 3, end_of_line + 3)
+				self.tv.selected_range = (
+					end_of_line + 1 + len(contents), 
+					end_of_line + 1 + len(contents))
 
 	def find_end_of_line(self, position):
 		contents = self.tv.text
