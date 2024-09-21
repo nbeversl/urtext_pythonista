@@ -22,7 +22,9 @@ class UrtextEditor(BaseEditor):
 		self.setup(args)
 
 	def setup(self, args):
-		
+		self._UrtextProjectList = None
+		self.current_open_file = None
+
 		self.urtext_project_path = ''
 		if 'path' in args:
 			self.urtext_project_path = args['path']
@@ -53,7 +55,6 @@ class UrtextEditor(BaseEditor):
 			editor_methods=editor_methods)
 		
 		self._UrtextProjectList.set_current_project(self.urtext_project_path)
-		self.current_open_file = None
 		self.saved = None
 		self.buttons = {}
 		self.updating_history = False
@@ -275,28 +276,30 @@ class UrtextEditor(BaseEditor):
 		self._UrtextProjectList.set_current_project(selection)
 
 	def manual_save(self, sender):
-		self.urtext_save(self.current_open_file, refresh_file=True)
+		self.urtext_save(self.current_open_file)
 		console.hud_alert('Saved','success',0.5)
 
-	def urtext_save(self, filename, refresh_file=True):
+	def urtext_save(self, filename):
 		if filename == self.current_open_file:
-			if self.save(None,
+			self.save(None,
 				save_as=False, 
-				handle_changed_contents=False):
-				file_changed = self._UrtextProjectList.on_modified(self.current_open_file)
-				print("FILE CHANGED", file_changed)
-				print("REFRESH FILE?", refresh_file)
-				if refresh_file:
-					if self._UrtextProjectList.is_async:
-						file_changed = file_changed.result()
-					print("RESULT", file_changed)
-					if file_changed:
-						print("RESULT", file_changed)
-						self.refresh_current_file()
+				handle_changed_contents=False)
+			if self._UrtextProjectList:
+				files_changed = self._UrtextProjectList.on_modified(self.current_open_file)
+				self._refresh_file_if_modified(files_changed)
+
+	def _refresh_file_if_modified(self, files_changed):
+		if self._UrtextProjectList.is_async:
+			files_changed = files_changed.result()
+		if self.current_open_file in files_changed:
+			self.refresh_current_file()
 
 	def refresh_current_file(self):
 		self.tv.scroll_enabled = False  
-		self.open_file_to_position(self.current_open_file, self.tv.selected_range[0])
+		self.open_file_to_position(
+			self.current_open_file,
+			self.tv.selected_range[0],
+			visit=False)
 		self.tv.scroll_enabled = True
  
 	def open_http_link(self, link):
@@ -312,13 +315,9 @@ class UrtextEditor(BaseEditor):
 			highlight_range=highlight_range)		
 		self.tv.scroll_enabled = True
 	
-	def open_file(
+	def _open_file(
 		self, 
-		filename, 
-		save_first=None):
-
-		if save_first == None:
-			save_first = True
+		filename):
 
 		if not os.path.exists(filename):
 			console.hud_alert(
@@ -326,11 +325,12 @@ class UrtextEditor(BaseEditor):
 				'error',
 				1)
 			return None
-		
-		if save_first and self.current_open_file != filename:
+
+		if self.current_open_file != filename:
 			self.urtext_save(self.current_open_file)
 
 		contents = self.get_file_contents(filename)
+
 		self.tv.text=''
 		self.tv.text=contents
 		self.current_open_file_original_contents = contents
@@ -341,10 +341,13 @@ class UrtextEditor(BaseEditor):
 		self,
 		filename, 
 		position,
+		visit=True,
 		node_range=[]):
 
-		self.open_file(filename)
-
+		self._open_file(filename)
+		if visit and self._UrtextProjectList:
+			modified_files = self._UrtextProjectList.visit_file(filename)
+			self._refresh_file_if_modified(modified_files)
 		if position == len(self.tv.text):
 			position -= 1 
 		self.tv.selected_range = (position, position)
@@ -394,7 +397,7 @@ class UrtextEditor(BaseEditor):
 	def new_node(self, sender):
 		if self._UrtextProjectList.current_project:
 			new_node = self._UrtextProjectList.current_project.new_file_node()
-			self.open_file(new_node['filename'])
+			self._open_file(new_node['filename'])
 			self.tv.selected_range = (
 				new_node['cursor_pos'],
 				new_node['cursor_pos'])
