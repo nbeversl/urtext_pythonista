@@ -291,8 +291,6 @@ class UrtextEditor(BaseEditor):
 				self._refresh_file_if_modified(files_changed)
 
 	def _refresh_file_if_modified(self, files_changed):
-		if self._UrtextProjectList.is_async:
-			files_changed = files_changed.result()
 		if self.current_open_file in files_changed:
 			self.refresh_current_file()
 
