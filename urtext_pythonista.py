@@ -286,6 +286,8 @@ class UrtextEditor(BaseEditor):
 				handle_changed_contents=False)
 			if self._UrtextProjectList:
 				files_changed = self._UrtextProjectList.on_modified(self.current_open_file)
+				if self._UrtextProjectList.is_async:
+					files_changed = files_changed.result()
 				self._refresh_file_if_modified(files_changed)
 
 	def _refresh_file_if_modified(self, files_changed):
@@ -299,7 +301,7 @@ class UrtextEditor(BaseEditor):
 		self.open_file_to_position(
 			self.current_open_file,
 			self.tv.selected_range[0],
-			visit=False)
+			refresh=True)
 		self.tv.scroll_enabled = True
  
 	def open_http_link(self, link):
@@ -326,14 +328,12 @@ class UrtextEditor(BaseEditor):
 				1)
 			return None
 
-		if self.current_open_file != filename:
+		if self.current_open_file and self.current_open_file != filename:
 			self.urtext_save(self.current_open_file)
 
 		contents = self.get_file_contents(filename)
-
 		self.tv.text=''
 		self.tv.text=contents
-		self.current_open_file_original_contents = contents
 		self.current_open_file = filename
 		self.refresh_syntax_highlighting()
 
@@ -341,15 +341,21 @@ class UrtextEditor(BaseEditor):
 		self,
 		filename, 
 		position,
-		visit=True,
+		refresh=False,
+		visit=False,
 		node_range=[]):
 
-		self._open_file(filename)
-		if visit and self._UrtextProjectList:
-			modified_files = self._UrtextProjectList.visit_file(filename)
-			self._refresh_file_if_modified(modified_files)
-		if position == len(self.tv.text):
-			position -= 1 
+
+		if refresh or (filename != self.current_open_file):	
+			self._open_file(filename)
+
+			if visit and self._UrtextProjectList:
+				modified_files = self._UrtextProjectList.visit_file(filename)
+				if self._UrtextProjectList.is_async:
+					modified_files = modified_files.result()
+
+		if position > 0 == len(self.tv.text):
+			position = len(self.tv.text) - 1
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1))
 		self.refresh_syntax_highlighting(highlight_range=node_range)
