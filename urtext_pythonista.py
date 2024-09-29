@@ -306,15 +306,11 @@ class UrtextEditor(BaseEditor):
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
 
-	def refresh_syntax_highlighting(self,
-		highlight_range=None):
-		
-		self.tv.scroll_enabled = False     
+	def refresh_syntax_highlighting(self, highlight_range=None):	
 		self.syntax_highlighter.setAttribs(
 			self.tv,
 			self.tvo,
 			highlight_range=highlight_range)		
-		self.tv.scroll_enabled = True
 	
 	def _open_file(
 		self, 
