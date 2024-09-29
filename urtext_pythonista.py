@@ -297,12 +297,10 @@ class UrtextEditor(BaseEditor):
 			file_list = [file_list]
 		for filename in file_list:
 			if filename == self.current_open_file:
-				self.tv.scroll_enabled = False  
 				self.open_file_to_position(
 					self.current_open_file,
 					self.tv.selected_range[0],
 					refresh=True)
-				self.tv.scroll_enabled = True
 				return
  
 	def open_http_link(self, link):
@@ -348,7 +346,7 @@ class UrtextEditor(BaseEditor):
 		if refresh or (filename != self.current_open_file):	
 			self._open_file(filename)
 
-		if position > 0 == len(self.tv.text):
+		if position > 0 and position > len(self.tv.text) - 1:
 			position = len(self.tv.text) - 1
 		self.tv.selected_range = (position, position)
 		self.tvo.scrollRangeToVisible(NSRange(position, 1))
