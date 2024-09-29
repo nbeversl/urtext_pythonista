@@ -49,6 +49,7 @@ class UrtextEditor(BaseEditor):
 			'write_to_console' : print,
 			'set_buffer': self.set_buffer,
 			'close_file' : self.close_file,
+			'refresh_files' : self.refresh_files
 		}
 		self._UrtextProjectList = ProjectList(
 			self.urtext_project_path,
@@ -288,19 +289,21 @@ class UrtextEditor(BaseEditor):
 				files_changed = self._UrtextProjectList.on_modified(self.current_open_file)
 				if self._UrtextProjectList.is_async:
 					files_changed = files_changed.result()
-				self._refresh_file_if_modified(files_changed)
+				if self.current_open_file in files_changed:
+					self.refresh_files(self.current_open_file)
 
-	def _refresh_file_if_modified(self, files_changed):
-		if self.current_open_file in files_changed:
-			self.refresh_current_file()
-
-	def refresh_current_file(self):
-		self.tv.scroll_enabled = False  
-		self.open_file_to_position(
-			self.current_open_file,
-			self.tv.selected_range[0],
-			refresh=True)
-		self.tv.scroll_enabled = True
+	def refresh_files(self, file_list):
+		if not isinstance(file_list, list):
+			file_list = [file_list]
+		for filename in file_list:
+			if filename == self.current_open_file:
+				self.tv.scroll_enabled = False  
+				self.open_file_to_position(
+					self.current_open_file,
+					self.tv.selected_range[0],
+					refresh=True)
+				self.tv.scroll_enabled = True
+				return
  
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
@@ -340,17 +343,10 @@ class UrtextEditor(BaseEditor):
 		filename, 
 		position,
 		refresh=False,
-		visit=False,
 		node_range=[]):
-
 
 		if refresh or (filename != self.current_open_file):	
 			self._open_file(filename)
-
-			if visit and self._UrtextProjectList:
-				modified_files = self._UrtextProjectList.visit_file(filename)
-				if self._UrtextProjectList.is_async:
-					modified_files = modified_files.result()
 
 		if position > 0 == len(self.tv.text):
 			position = len(self.tv.text) - 1
