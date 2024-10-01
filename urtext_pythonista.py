@@ -125,7 +125,7 @@ class UrtextEditor(BaseEditor):
 			self.tv.selected_range = (position, position)
 			self.tv.scroll_enabled = True
 			self.saved = False
-			self.refresh_syntax_highlighting()
+			self.refresh_syntax_highlighting(initial=True)
 			return True
 
 	def close_file(self, filename):
@@ -143,7 +143,7 @@ class UrtextEditor(BaseEditor):
 	def set_clipboard(self, text):
 		clipboard.set(text)
 		console.hud_alert(text + ' copied to the clipboard', 'info', 2)
-		self.refresh_syntax_highlighting() # necessary for some reason
+		self.refresh_syntax_highlighting(initial=True) # necessary for some reason
 
 	def insert_at_next_line(self, contents):
 		pass #future
@@ -171,7 +171,7 @@ class UrtextEditor(BaseEditor):
 		self.autoCompleter.show()
 
 	def run_chosen_option(self, function):
-		self.menu_options[function](None)
+		function(None)
 
 	def insert_dynamic_def(self, sender):
 		position = self.tv.selected_range[0]
@@ -195,11 +195,11 @@ class UrtextEditor(BaseEditor):
 		file_pos = self.tv.selected_range[0] + 1
 		full_line, col_pos = get_full_line(file_pos, self.tv)
 		self._UrtextProjectList.current_project.run_directive(
-				'PULL_NODE',
-				full_line,
-				col_pos,
-				self.current_open_file,
-				file_pos)
+			'PULL_NODE',
+			full_line,
+			col_pos,
+			self.current_open_file,
+			file_pos)
 
 	def tab(self, sender):
 		self.tv.replace_range(self.tv.selected_range, '\t')
@@ -289,7 +289,7 @@ class UrtextEditor(BaseEditor):
 				files_changed = self._UrtextProjectList.on_modified(self.current_open_file)
 				if self._UrtextProjectList.is_async:
 					files_changed = files_changed.result()
-				if self.current_open_file in files_changed:
+				if files_changed and self.current_open_file in files_changed:
 					self.refresh_files(self.current_open_file)
 
 	def refresh_files(self, file_list):
@@ -306,12 +306,9 @@ class UrtextEditor(BaseEditor):
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
 
-	def refresh_syntax_highlighting(self, highlight_range=None):	
-		self.syntax_highlighter.setAttribs(
-			self.tv,
-			self.tvo,
-			highlight_range=highlight_range)		
-	
+	def refresh_syntax_highlighting(self, highlight_range=None, initial=False):
+		self.syntax_highlighter.refresh(highlight_range=highlight_range, initial=initial)
+
 	def _open_file(
 		self, 
 		filename):
@@ -330,7 +327,6 @@ class UrtextEditor(BaseEditor):
 		self.tv.text=''
 		self.tv.text=contents
 		self.current_open_file = filename
-		self.refresh_syntax_highlighting()
 
 	def open_file_to_position(
 		self,
@@ -352,7 +348,7 @@ class UrtextEditor(BaseEditor):
 
 	def delay_unhighlight(self):
 		time.sleep(0.25)
-		self.refresh_syntax_highlighting()
+		self.refresh_syntax_highlighting(initial=True)
 
 	def timestamp(self, sender):
 		self.tv.replace_range(
@@ -395,6 +391,7 @@ class UrtextEditor(BaseEditor):
 			self.tv.selected_range = (
 				new_node['cursor_pos'],
 				new_node['cursor_pos'])
+			self.refresh_syntax_highlighting(initial=True)
 			self.tv.begin_editing()
 
 	def meta_autocomplete(self, sender): #works	
