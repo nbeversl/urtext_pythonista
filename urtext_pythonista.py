@@ -187,19 +187,19 @@ class UrtextEditor(BaseEditor):
 		file_pos = self.tv.selected_range[0] + 1
 		full_line, col_pos = get_full_line(file_pos, self.tv)
 		self._UrtextProjectList.current_project.run_directive(
-				'POP_NODE',
-				self.current_open_file,
-				file_pos)
+			'POP_NODE',
+			self.current_open_file,
+			file_pos)
 
 	def pull_node(self, sender):
 		file_pos = self.tv.selected_range[0] + 1
 		full_line, col_pos = get_full_line(file_pos, self.tv)
 		self._UrtextProjectList.current_project.run_directive(
-				'PULL_NODE',
-				full_line,
-				col_pos,
-				self.current_open_file,
-				file_pos)
+			'PULL_NODE',
+			full_line,
+			col_pos,
+			self.current_open_file,
+			file_pos)
 
 	def tab(self, sender):
 		self.tv.replace_range(self.tv.selected_range, '\t')
@@ -287,21 +287,17 @@ class UrtextEditor(BaseEditor):
 				handle_changed_contents=False)
 			if self._UrtextProjectList:
 				files_changed = self._UrtextProjectList.on_modified(self.current_open_file)
-				self._refresh_file_if_modified(files_changed)
 
-	def _refresh_file_if_modified(self, files_changed):
-		if self._UrtextProjectList.is_async:
-			files_changed = files_changed.result()
-		if self.current_open_file in files_changed:
-			self.refresh_current_file()
-
-	def refresh_current_file(self):
-		self.tv.scroll_enabled = False  
-		self.open_file_to_position(
-			self.current_open_file,
-			self.tv.selected_range[0],
-			visit=False)
-		self.tv.scroll_enabled = True
+	def refresh_files(self, file_list):
+		if not isinstance(file_list, list):
+			file_list = [file_list]
+		for filename in file_list:
+			if filename == self.current_open_file:
+				self.open_file_to_position(
+					self.current_open_file,
+					self.tv.selected_range[0],
+					refresh=True)
+				return
  
 	def open_http_link(self, link):
 		webbrowser.open('safari-'+link)
