@@ -187,9 +187,9 @@ class UrtextEditor(BaseEditor):
 		file_pos = self.tv.selected_range[0] + 1
 		full_line, col_pos = get_full_line(file_pos, self.tv)
 		self._UrtextProjectList.current_project.run_directive(
-				'POP_NODE',
-				self.current_open_file,
-				file_pos)
+			'POP_NODE',
+			self.current_open_file,
+			file_pos)
 
 	def pull_node(self, sender):
 		file_pos = self.tv.selected_range[0] + 1
@@ -287,10 +287,6 @@ class UrtextEditor(BaseEditor):
 				handle_changed_contents=False)
 			if self._UrtextProjectList:
 				files_changed = self._UrtextProjectList.on_modified(self.current_open_file)
-				if self._UrtextProjectList.is_async:
-					files_changed = files_changed.result()
-				if files_changed and self.current_open_file in files_changed:
-					self.refresh_files(self.current_open_file)
 
 	def refresh_files(self, file_list):
 		if not isinstance(file_list, list):
