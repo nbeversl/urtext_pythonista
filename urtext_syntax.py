@@ -125,12 +125,6 @@ class UrtextSyntax:
 					'font' : theme['metadata_flags']
 				}
 			},
-			'bullet': {
-				'pattern': syntax.bullet_c,
-				'self' : {
-					'color' : theme['bullet']
-					}
-			},
 			'metadata_assigner': {  
 				'pattern': syntax.metadata_assigner_c,
 				'self' : {
@@ -164,30 +158,26 @@ class UrtextSyntax:
 					'color': theme['timestamp'] 
 					},
 			},
-			'urtext_message' : {
-				'pattern':  syntax.urtext_messages_c, 
-				'self' : {
-					'color' : theme['error_messages'] 
-					},
-			},
 			'title': {  
 				# SLOW
-				'pattern': re.compile(r'(?<!\{)([\w\s]+?\s_)(?=\s|$)'),
+				'pattern': re.compile(r'(?<!\{)([\w\s\d\']+?\s_)(?=\s|$)'),
 				'self': {
 					'font' : theme['font']['bold']
 				},
 			},
 			'opening_wrapper' : {
 				'pattern': syntax.opening_wrapper_c,
-				'type' : 'push',
-				'pop' : {
-					'pattern': syntax.closing_wrapper_c
-					},
 				'self' : {
 					'color' : theme['error_messages']
 				},
 			},
-			'closing_wrapper' : {
+			'closing_bracket': {
+				'pattern': syntax.closing_wrapper_c,
+				'self' : {
+					'color' : theme['error_messages']
+				},
+			},
+			'escape_wrapper' : {
 				'pattern': re.compile('`.*?`'),
 				'self' : {
 					'color' : theme['error_messages']
