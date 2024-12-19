@@ -172,22 +172,24 @@ class UrtextSyntax:
 			},
 			'title': {  
 				# SLOW
-				'pattern': re.compile(r'(?<!\{)([\w\s]+?\s_)(?=\s|$)'),
+				'pattern': re.compile(r'(?<!\{)([\w\s\d\']+?\s_)(?=\s|$)'),
 				'self': {
 					'font' : theme['font']['bold']
 				},
 			},
 			'opening_wrapper' : {
 				'pattern': syntax.opening_wrapper_c,
-				'type' : 'push',
-				'pop' : {
-					'pattern': syntax.closing_wrapper_c
-					},
 				'self' : {
 					'color' : theme['error_messages']
 				},
 			},
-			'closing_wrapper' : {
+			'closing_bracket': {
+				'pattern': syntax.closing_wrapper_c,
+				'self' : {
+					'color' : theme['error_messages']
+				},
+			},
+			'escape_wrapper' : {
 				'pattern': re.compile('`.*?`'),
 				'self' : {
 					'color' : theme['error_messages']

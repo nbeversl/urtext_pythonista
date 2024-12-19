@@ -1,14 +1,14 @@
 from urtext.project_list import ProjectList
 from urtext.utils import match_compact_node
-from sublemon.editor import BaseEditor
-import os
-import time
-import ui
-import clipboard
-import re
-import console
-from objc_util import *
 from .urtext_syntax import UrtextSyntax
+from sublemon.editor import BaseEditor
+from objc_util import *
+import clipboard
+import console
+import time
+import os
+import ui
+import re
 
 class UrtextEditor(BaseEditor):
 
@@ -204,19 +204,16 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(self.tv.selected_range, '\t')
 
 	def add_hash_meta(self, sender):
-		hash_values = self._UrtextProjectList.current_project.get_all_values_for_key(
+		self.hash_values = self._UrtextProjectList.current_project.get_all_values_for_key(
 			self._UrtextProjectList.current_project.get_single_setting('hash_key').text)
-		self.autoCompleter.set_items(
-			hash_values,
-			'hash_values',
-			allow_new=True)
+		self.autoCompleter.set_items(self.hash_values, 'hash_values', allow_new=True)
 		self.autoCompleter.set_action(self.insert_hash_meta)
 		self.autoCompleter.show()
 
 	def insert_hash_meta(self, value):
 		self.tv.replace_range(
 			self.tv.selected_range, 
-			'#'+value+' ')
+			'#'+self.hash_values[value]+' ')
 		self.tv.begin_editing()
 		
 	def manual_timestamp(self, sender):
@@ -290,8 +287,8 @@ class UrtextEditor(BaseEditor):
 			pass
 
 		if character:
-			if character > 0 and character > len(self.tv.text) - 1:
-				character = len(self.tv.text) - 1
+			if character > 0 and character >= len(self.tv.text):
+				character = len(self.tv.text) - 2
 		else:
 			character = 0
 		self.tv.selected_range = (character, character)
