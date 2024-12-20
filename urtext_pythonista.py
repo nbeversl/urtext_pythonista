@@ -223,7 +223,8 @@ class UrtextEditor(BaseEditor):
 		console.hud_alert(message, 'error', 5)
 		print(message)
 
-	def select_project(self, sender): 
+	def select_project(self, sender):
+		self.project_options = self._UrtextProjectList.project_titles()
 		self.autoCompleter.set_items(
 			self._UrtextProjectList.project_titles(),
 			'project_titles')
@@ -242,7 +243,7 @@ class UrtextEditor(BaseEditor):
 
 	def switch_project(self, selection):
 		self.tv.begin_editing()
-		self._UrtextProjectList.set_current_project(selection)
+		self._UrtextProjectList.set_current_project(self.project_options[selection])
 
 	def manual_save(self, sender):
 		self.urtext_save(self.current_open_file)
