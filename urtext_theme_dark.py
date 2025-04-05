@@ -4,7 +4,7 @@ from sublemon.themes.fonts import fonts
 urtext_theme_dark = {  
     'name': 'Urtext Dark', 
     'keyboard_appearance': 1,
-    'dynamic_definition_wrapper' : colors['grey6'],
+    'frame' : colors['grey6'],
     'background_color' : colors['black'],
     'dd_key': colors['highlight_yellow'],
     'dd_flag': colors['bright_green2'],

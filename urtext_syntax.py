@@ -58,10 +58,10 @@ class UrtextSyntax:
 
 		self.syntax = {
    
-			'dynamic_def': {
-				'pattern': syntax.dynamic_def_c,
+			'frame': {
+				'pattern': syntax.frame_c,
 				'self': {
-					   'color': theme['dynamic_definition_wrapper'],
+					   'color': theme['frame'],
 					   'font' : theme['font']['bold italic'],
 					   },
 				'scoped' : {

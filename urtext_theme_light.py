@@ -4,7 +4,7 @@ from sublemon.themes.fonts import fonts
 urtext_theme_light = {   
     'name': 'Urtext Light',
     'keyboard_appearance': 0,
-    'dynamic_definition_wrapper' : colors['grey6'],
+    'frame' : colors['grey6'],
     'background_color' :colors['paper'],
     'foreground_color' : colors['grey5'],
     'highlight_color': colors['highlight_yellow'],

@@ -42,7 +42,7 @@ class UrtextEditor(BaseEditor):
 			'open_file_in_editor' : self.open_file,
 			'get_buffer' : self.get_buffer,
 			'set_buffer': self.set_buffer,
-			'replace' : self.insert_text,
+			'replace' : self.replace_text,
 			'refresh_files' : self.refresh_files,
 			'show_panel': self.show_panel, 
 			'get_current_filename': self.get_current_filename,
@@ -74,7 +74,7 @@ class UrtextEditor(BaseEditor):
 			'{..}' : self.new_inline_node,
 			'->': self.tab,
 			'::': self.meta_autocomplete,
-			'M' : self.all_selectors,
+			'M' : self.all_actions,
 			'-' : self.insert_meta_dash,
 			'↓' : self.hide_keyboard,
 			'#' : self.add_hash_meta,
@@ -90,26 +90,27 @@ class UrtextEditor(BaseEditor):
 			})
 
 		self.setup_autocomplete()
-
-		launch_actions = {
-			'new_node' : self.new_node
-		}
-
+		launch_actions = {'new_node' : self.new_node}
 		if 'launch_action' in args and args['launch_action'] in launch_actions:
 			launch_actions[args['launch_action']](None)
 		self.show()
 				
 	def urtext_home(self, sender):
-		self._UrtextProjectList.run_selector('open_home')
+		self._UrtextProjectList.run_action('open_home')
 		
-	def all_selectors(self, sender):
-		self._UrtextProjectList.run_selector('all_selectors')
+	def all_actions(self, sender):
+		self._UrtextProjectList.run_action('show_all_actions')
 		
 	def timestamp(self, sender):
-		self._UrtextProjectList.run_selector('insert_timestamp')	
+		self._UrtextProjectList.run_action('insert_timestamp')	
 
 	def insert_text(self, text):
 		self.tv.replace_range(self.tv.selected_range, text)
+	
+	def replace_text(self, filename='', start=0, end=0, full_line=False, replacement_text=''):
+		if full_line is True:
+			 _, _, _, [start, end] = self.get_line_and_cursor()
+		self.tv.replace_range((start, end), replacement_text)
 
 	def get_buffer(self, filename):
 		if filename == self.current_open_file:
@@ -120,7 +121,7 @@ class UrtextEditor(BaseEditor):
 
 	def set_buffer(self, filename, contents):
 		if filename == self.current_open_file:
-			position = self.tv.selected_range[0]
+			position = self.get_position()
 			self.tv.scroll_enabled = False
 			self.tv.text = ''
 			self.tv.text = contents
@@ -146,7 +147,7 @@ class UrtextEditor(BaseEditor):
 			return True
 
 	def copy_link_to_here(self, sender):
-		self._UrtextProjectList.run_selector('copy_link_to_here')
+		self._UrtextProjectList.run_action('copy_link_to_here')
 
 	def open_in(self, filename):
 		console.open_in(filename)
@@ -166,7 +167,7 @@ class UrtextEditor(BaseEditor):
 		self.tv.end_editing()
 
 	def search_all_projects(self, sender):
-		self._UrtextProjectList.run_selector('select_project')
+		self._UrtextProjectList.run_action('select_project')
 
 	def show_panel(self, selections, callback, on_highlight=None):
 		self.autoCompleter.set_items(selections, 'quick_panel')
@@ -181,17 +182,19 @@ class UrtextEditor(BaseEditor):
 
 	def get_line_and_cursor(self):
 		cursor_pos = self.get_position()
-		previous_content = 0
+		line_start = 0
 		for line in self.tv.text.split('\n'):
-			if previous_content + len(line) > cursor_pos:
+			if line_start + len(line) > cursor_pos:
 				break
-			previous_content += len(line)
+			line_start += len(line) + 1
 
-		full_line, cursor_pos = get_full_line(cursor_pos, self.tv)
-		return full_line, previous_content - cursor_pos
+		full_line, position_in_line = get_full_line(cursor_pos, self.tv)
+		start = line_start
+		end = line_start + len(full_line)
+		return full_line, position_in_line, cursor_pos, [start, end]
 		
 	def insert_dynamic_def(self, sender):
-		position = self.tv.selected_range[0]
+		position = self.get_position()
 		self.tv.replace_range(
 			self.tv.selected_range, 
 			'\n\n[[ >(|  >)\n+( ) +( )\n-( ) -( )\n ]]')
@@ -214,14 +217,14 @@ class UrtextEditor(BaseEditor):
 		self.tv.begin_editing()
 		
 	def manual_timestamp(self, sender):
-		self._UrtextProjectList.run_selector('insert_timestamp')
+		self._UrtextProjectList.run_action('insert_timestamp')
 
 	def error_message(self, message):
 		console.hud_alert(message, 'error', 5)
 		print(message)
 
 	def select_project(self, sender):
-		self._UrtextProjectList.run_selector('select_project')
+		self._UrtextProjectList.run_action('select_project')
 
 	def manual_save(self, sender):
 		self.urtext_save(self.current_open_file)
@@ -238,7 +241,7 @@ class UrtextEditor(BaseEditor):
 			file_list = [file_list]
 		for filename in file_list:
 			if filename == self.current_open_file:
-				self.open_file_to_position(self.current_open_file, character=self.tv.selected_range[0])
+				self.open_file_to_position(self.current_open_file, character=self.get_position())
 				 
 	def refresh_syntax_highlighting(self, highlight_range=None, initial=False):
 		self.syntax_highlighter.refresh(highlight_range=highlight_range, initial=initial)
@@ -273,7 +276,7 @@ class UrtextEditor(BaseEditor):
 		else:
 			character = 0
 		self.tv.selected_range = (character, character)
-		self.tvo.scrollRangeToVisible(NSRange(character, 1))
+		self.tvo.scrollRangeToVisible(NSRange(character, 0))
 
 		self.refresh_syntax_highlighting(highlight_range=highlight_range)
 		self.tv.begin_editing()
@@ -285,7 +288,7 @@ class UrtextEditor(BaseEditor):
 		self.refresh_syntax_highlighting(initial=True)
 
 	def open_link(self, sender):
-		line, cursor = self.get_line_and_cursor()
+		line, cursor,_,_ = self.get_line_and_cursor()
 		self._UrtextProjectList.handle_link(line, self.current_open_file, self.get_position(), col_pos=cursor)
 				
 	def new_inline_node(self, sender, locate_inside=True):
@@ -296,13 +299,13 @@ class UrtextEditor(BaseEditor):
 		self.tv.selected_range = (selection[0]+2, selection[0]+2)
 
 	def new_node(self, sender):
-		self._UrtextProjectList.run_selector('new_file_node')
+		self._UrtextProjectList.run_action('new_file_node')
 
 	def meta_autocomplete(self, sender): 
-		self._UrtextProjectList.run_selector('browse_metadata')
+		self._UrtextProjectList.run_action('browse_metadata')
 
 	def search_node_title(self, sender):
-		self._UrtextProjectList.run_selector('node_browser')
+		self._UrtextProjectList.run_action('node_browser')
 
 	def _refresh_node_browser_until_compiled(self):
 		while not self._UrtextProjectList.current_project.compiled:
@@ -316,13 +319,13 @@ class UrtextEditor(BaseEditor):
 		self.tv.replace_range(self.tv.selected_range, ' - ')
 
 	def link_to_new_node(self, sender):
-		self._UrtextProjectList.run_selector('insert_link_to_new_node')
+		self._UrtextProjectList.run_action('insert_link_to_new_node')
 
 	def nav_back(self, sender):
-		self._UrtextProjectList.run_selector('nav_back')
+		self._UrtextProjectList.run_action('nav_back')
 
 	def nav_forward(self, sender):
-		self._UrtextProjectList.run_selector('nav_forward')
+		self._UrtextProjectList.run_action('nav_forward')
 
 	@ui.in_background
 	def delete_node(self, sender):
@@ -339,7 +342,7 @@ class UrtextEditor(BaseEditor):
 			return position
 
 	def jump_to_def(self, sender):
-		self._UrtextProjectList.run_selector('go_to_frame')
+		self._UrtextProjectList.run_action('go_to_frame')
 
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
