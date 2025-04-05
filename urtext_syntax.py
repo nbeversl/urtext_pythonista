@@ -73,7 +73,7 @@ class UrtextSyntax:
 						},
 						'scoped' : {
 							'flag': {
-								'pattern': syntax.dd_flags_c, 
+								'pattern': syntax.call_flags_c, 
 								'self' : {
 									'color' : theme['flag'] 
 									},
@@ -86,7 +86,7 @@ class UrtextSyntax:
 								}
 							},
 							'key_op_value': {
-								'pattern': syntax.dd_key_op_value_c,
+								'pattern': syntax.call_key_op_value_c,
 								'self': {
 									'groups': {
 										1 : theme['function_keys'],
@@ -95,16 +95,6 @@ class UrtextSyntax:
 									}
 								}
 							},
-							# 'key_with_opt_flag': {
-							# 	'pattern': syntax.dd_key_with_opt_flags,
-							# 	'self': {
-							# 		'groups': {
-							# 			2 : theme['dd_key'],
-							# 			# 2 : theme['dd_flag'],
-							# 		}
-							# 	}
-							# }
-
 						}
 					},
 				},
