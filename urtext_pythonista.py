@@ -281,7 +281,6 @@ class UrtextEditor(BaseEditor):
 		self.refresh_syntax_highlighting(highlight_range=highlight_range)
 		self.tv.begin_editing()
 		self.thread_pool.submit(self.delay_unhighlight)
-		self.delay_unhighlight()
 
 	def delay_unhighlight(self):
 		time.sleep(0.25)
