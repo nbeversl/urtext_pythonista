@@ -150,6 +150,9 @@ class UrtextEditor(BaseEditor):
 		self._UrtextProjectList.run_action('copy_link_to_here')
 
 	def open_in(self, filename):
+		if not os.path.isfile(filename):
+			console.hud_alert('Path is not file, cannot open in Urtext', 'error')
+			return None
 		console.open_in(filename)
 
 	def popup(self, message):
@@ -250,6 +253,10 @@ class UrtextEditor(BaseEditor):
 
 		if not os.path.exists(filename):
 			console.hud_alert('FILE not found. Synced?', 'error', 1)
+			return None
+
+		if not os.path.isfile(filename):
+			console.hud_alert('Path is not file, cannot open in Urtext', 'error')
 			return None
 
 		if self.current_open_file and self.current_open_file != filename:
