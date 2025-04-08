@@ -141,7 +141,7 @@ class UrtextEditor(BaseEditor):
 
 	def close_file(self, filename):
 		if filename == self.current_open_file:
-			self.save(None)
+			self.urtext_save(filename)
 			self.tv.text = ''
 			self.saved = True
 			return True
@@ -332,12 +332,6 @@ class UrtextEditor(BaseEditor):
 
 	def nav_forward(self, sender):
 		self._UrtextProjectList.run_action('nav_forward')
-
-	@ui.in_background
-	def delete_node(self, sender):
-		self._UrtextProjectList.current_project.delete_file(
-			self.current_open_file)
-		self.tv.begin_editing()
 
 	def find_end_of_line(self, position):
 		contents = self.tv.text
