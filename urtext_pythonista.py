@@ -51,13 +51,11 @@ class UrtextEditor(BaseEditor):
 			'get_line_and_cursor': self.get_line_and_cursor,
 			'popup' : self.popup,
 			'close_file' : self.close_file,
-			'get_selection' : self.get_selection
-			
+			'get_selection' : self.get_selection,
+			'select_file_or_folder': self.select_file_or_folder,
+			#'open_file_dialog': self.open_file_dialog
 		}
-		self._UrtextProjectList = ProjectList(
-			self.urtext_project_path,
-			editor_methods=editor_methods)
-		
+		self._UrtextProjectList = ProjectList(self.urtext_project_path, editor_methods=editor_methods)
 		self._UrtextProjectList.set_current_project(self.urtext_project_path)
 		self.saved = None
 		self.buttons = {}
@@ -137,13 +135,15 @@ class UrtextEditor(BaseEditor):
 		return self.current_open_file
 
 	def get_selection(self):
-		return self.tv.text[self.tv.selected_range]
+		return self.tv.text[self.tv.selected_range[0]:self.tv.selected_range[1]], self.tv.selected_range[0]
 
-	def close_file(self, filename):
+	def close_file(self, filename, save=True):
 		if filename == self.current_open_file:
-			self.urtext_save(filename)
+			if save:
+				self.urtext_save(filename)
 			self.tv.text = ''
-			self.saved = True
+			self.current_open_file = None
+			self.saved = None
 			return True
 
 	def copy_link_to_here(self, sender):
@@ -343,6 +343,15 @@ class UrtextEditor(BaseEditor):
 
 	def jump_to_def(self, sender):
 		self._UrtextProjectList.run_action('go_to_frame')
+
+	def select_file_or_folder(self, callback):
+		path = dialogs.pick_document()
+		callback(path)
+
+	def _open_file_dialog(self, callback, allow_folders=None):
+		pass
+		path = dialogs.pick_document(types=[])
+		# hangs
 
 def get_full_line(position, tv):
 	lines = tv.text.split('\n')
