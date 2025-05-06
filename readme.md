@@ -6,7 +6,7 @@ This repository is an implementation of [Urtext](https://urtext.co) for **iOS** 
 
 ## What Urtext Is
 
-Urtext /ˈʊrtekst/ is an open-source library for plaintext writing, research, documentation, knowledge bases, journaling, Zettelkasten, project/personal organization, note taking, a lightweight database substitute, or any other writing or information management that can be done in text format.
+[Urtext](https://urtext.co) /ˈʊrtekst/ is an open-source library in Python for plaintext writing, research, documentation, knowledge bases, journaling, Zettelkasten, project/personal organization, note taking, a lightweight database substitute, or any other writing or information management that can be done in text format.
 
 The core library has no user interface and requires a text editor implementation (such as the one in this repository).
 
