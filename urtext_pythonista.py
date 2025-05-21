@@ -36,6 +36,7 @@ class UrtextEditor(BaseEditor):
 			'insert_text' : self.insert_text,
 			'save_current' : self.urtext_save,
 			'save_file' : self.urtext_save,
+			'get_open_files' : self.get_open_files,
 			'set_clipboard' : self.set_clipboard,
 			'write_to_console' : print,
 			'open_external_file' : self.open_in,
@@ -148,6 +149,9 @@ class UrtextEditor(BaseEditor):
 
 	def copy_link_to_here(self, sender):
 		self._UrtextProjectList.run_action('copy_link_to_here')
+
+	def get_open_files(self):
+		return { self.current_open_file: False if self.saved else True }
 
 	def open_in(self, filename):
 		if not os.path.isfile(filename):
