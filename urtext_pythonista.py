@@ -50,7 +50,7 @@ class UrtextEditor(BaseEditor):
 			'get_position': self.get_position,
 			'set_position': self.set_position,
 			'get_line_and_cursor': self.get_line_and_cursor,
-			'popup' : self.popup,
+			'info_message' : self.info_message,
 			'close_file' : self.close_file,
 			'get_selection' : self.get_selection,
 			'select_file_or_folder': self.select_file_or_folder,
@@ -159,7 +159,7 @@ class UrtextEditor(BaseEditor):
 			return None
 		console.open_in(filename)
 
-	def popup(self, message):
+	def info_message(self, message):
 		self.thread_pool.submit(console.hud_alert, message, 'info', 2)
 
 	def set_clipboard(self, text):
