@@ -1,4 +1,5 @@
 import urtext.syntax as syntax
+from urtext.url import url_match_c
 import re
 
 class UrtextSyntax:
@@ -173,4 +174,16 @@ class UrtextSyntax:
 					'color' : theme['error_messages']
 				},
 			},
+			'anchor': {
+				'pattern': syntax.whitespace_anchor_c,
+				'self' : {
+					'color' : theme['anchor']
+				},				
+			},
+			'http_url': {
+				'pattern': url_match_c,
+				'self' : {
+					'color' : theme['error_messages']
+				},
+			}
 		}

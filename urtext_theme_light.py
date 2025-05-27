@@ -7,6 +7,7 @@ urtext_theme_light = {
     'frame' : colors['grey6'],
     'background_color' :colors['paper'],
     'foreground_color' : colors['grey5'],
+    'anchor': colors['unobtrusive'],
     'highlight_color': colors['highlight_yellow'],
     'function_names' : colors['lightgray'],
     'keys' : colors['red'],
@@ -28,7 +29,7 @@ urtext_theme_light = {
         'bold' :    fonts['Courier New Bold'],
         'bold italic': fonts['Courier New Bold Italic'],
     },
-    'metadata_flags' :              fonts['Courier New Bold'],
+    'metadata_flags' :  fonts['Courier New Bold'],
     'wrappers' : [
         colors['blue_lighter'],
         colors['aqua_green2'],

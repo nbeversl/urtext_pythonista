@@ -7,7 +7,7 @@ urtext_theme_dark = {
     'frame' : colors['grey6'],
     'background_color' : colors['black'],
     'call_key': colors['highlight_yellow'],
-    '': colors['bright_green2'],
+    'anchor': colors['unobtrusive'],
     'foreground_color' : colors['white'],
     'highlight_color': colors['highlight_yellow'],
     'function_names' : colors['white'],
@@ -30,13 +30,13 @@ urtext_theme_dark = {
     'file_link_modifier_missing': colors['yellow'],
     'error_messages' : colors['red'],
     'timestamp': colors['blue_brighter'],
-
     'font' : {
         'regular' : fonts['Courier New'],
         'bold' : fonts['Courier New Bold'],
         'bold italic': fonts['Courier New Bold Italic'],
     },
     'metadata_flags' : fonts['Courier New Bold'],
+    'http_url': colors['blue_lighter'],
     'wrappers' : [
         colors['blue_lighter'],
         colors['aqua_green2'],
