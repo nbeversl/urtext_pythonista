@@ -188,17 +188,17 @@ class UrtextEditor(BaseEditor):
 		self.tv.selected_range = (position, position)
 
 	def get_line_and_cursor(self):
-		cursor_pos = self.get_position()
+		file_pos = self.get_position()
 		line_start = 0
 		for line in self.tv.text.split('\n'):
-			if line_start + len(line) > cursor_pos:
+			if line_start + len(line) > file_pos:
 				break
 			line_start += len(line) + 1
 
-		full_line, position_in_line = get_full_line(cursor_pos, self.tv)
+		full_line, position_in_line = get_full_line(file_pos, self.tv)
 		start = line_start
 		end = line_start + len(full_line)
-		return full_line, position_in_line, cursor_pos, [start, end]
+		return full_line, position_in_line, file_pos, [start, end]
 		
 	def insert_dynamic_def(self, sender):
 		position = self.get_position()
@@ -362,7 +362,7 @@ def get_full_line(position, tv):
 	total_length = 0
 	for line in lines:
 		total_length += len(line) + 1
-		if total_length >= position:
+		if total_length > position:
 			distance_from_end_of_line = total_length - position
 			position_in_line = len(line) - distance_from_end_of_line
 			return (line, position_in_line)
