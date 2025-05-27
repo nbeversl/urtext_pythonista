@@ -283,7 +283,7 @@ class UrtextEditor(BaseEditor):
 
 		if character:
 			if character > 0 and character >= len(self.tv.text):
-				character = len(self.tv.text) - 2
+				character = len(self.tv.text) - 1
 		else:
 			character = 0
 		self.tv.selected_range = (character, character)
